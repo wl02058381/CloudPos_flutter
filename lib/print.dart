@@ -8,6 +8,7 @@ import 'package:flutter_bluetooth_basic/flutter_bluetooth_basic.dart';
 import 'dart:io' show Platform;
 import 'package:image/image.dart';
 import 'dart:convert';
+import 'package:cloudpos_online/main.dart';
 
 class Print extends StatefulWidget {
   final List<Map<String, dynamic>> data;
@@ -50,7 +51,21 @@ class _PrintState extends State<Print> {
         title: Text('Print'),
       ),
       body: _devices.isEmpty
-          ? Center(child: Text(_devicesMsg ?? ''))
+          ? Center(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                  Text(_devicesMsg ?? ''),
+                  RaisedButton(
+                      child: Text('回到首頁'),
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => CloudPos()));
+                      })
+                ]))
           : ListView.builder(
               itemCount: _devices.length,
               itemBuilder: (c, i) {
@@ -67,12 +82,18 @@ class _PrintState extends State<Print> {
     );
   }
 
+//  RaisedButton(child: Text('回到首頁'),onPressed: (){
+//                     Navigator.push(
+//                             context,
+//                             MaterialPageRoute(
+//                                 builder: (context) => CloudPos()));
+//                   });
   void initPrinter() {
     _printerManager.startScan(Duration(seconds: 2));
     _printerManager.scanResults.listen((val) {
       if (!mounted) return;
       setState(() => _devices = val);
-      if (_devices.isEmpty) setState(() => _devicesMsg = 'No Devices');
+      if (_devices.isEmpty) setState(() => _devicesMsg = '結帳已完成\nNo Devices');
     });
   }
 
@@ -91,7 +112,6 @@ class _PrintState extends State<Print> {
   Future<Ticket> _ticket(PaperSize paper) async {
     final ticket = Ticket(paper);
     int total = 0;
-
     // Image assets
     final ByteData data = await rootBundle.load('assets/store.png');
     final Uint8List bytes = data.buffer.asUint8List();
@@ -106,8 +126,8 @@ class _PrintState extends State<Print> {
       linesAfter: 1,
     );
     print("here");
-    print(widget.data.length);
-    for (var i = 0; i < widget.data.length/2; i++) {
+    print(widget.data);
+    for (var i = 0; i < widget.data.length/3 ; i++) {
       // print("INININININNIN");
       total += widget.data[i]['total_price'];
       ticket.text(widget.data[i]['title'],

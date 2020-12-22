@@ -82,10 +82,8 @@ class LoginPage extends StatelessWidget {
                       child: Text("登入"),
                       onPressed: () {
                         String status;
-                        
                         this.loginBTN().then((value) {
                           status = json.decode(value)["Status"];
-                          
                           print(status);
                           if (status == "Success") {
                             Navigator.push(

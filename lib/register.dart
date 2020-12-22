@@ -1,3 +1,4 @@
+import 'package:cloudpos_online/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
@@ -76,23 +77,22 @@ class RegisterPage extends StatelessWidget {
                 child: Text("註冊"),
                 onPressed: () {
                   String status;
-                  String accountstatus;
+                  // String accountstatus;
                   this.registerBTN().then((value) {
                     status = json.decode(value)["Status"];
-                    accountstatus = json.decode(value)["Account"];
+                    // accountstatus = json.decode(value)["msg"];
                     print(status);
                     if (status == "Success") {
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => HomePage(
-                                  data: json.decode(value)["StoreID"])));
-                      print(json.decode(value)["StoreID"]);
-                    } else if (accountstatus == "重複") {
+                              builder: (context) => LoginPage()));
+                      // print(json.decode(value)["StoreID"]);
+                    } else if (status == "AccountRepeat") {
                       Alert(
                         context: context,
                         type: AlertType.error,
-                        title: "登入失敗",
+                        title: "註冊失敗",
                         desc: "已經有重覆的帳號，請更換帳號重試",
                         buttons: [
                           DialogButton(
