@@ -13,31 +13,38 @@ class LoginPage extends StatelessWidget {
   String data;
   dynamic order_data = {};
   String _status;
+  
+  // List<Map<String, dynamic>> logindata = [];
   Future<String> loginBTN() async {
-    var wifiIP = await WifiInfo().getWifiIP();
-    var url = "https://cloudpos.54ucl.com:8011/LoginConfirm";
-    var body = json.encode({
-      "IP": wifiIP,
-      "Account": accountController.text,
-      "PassWord": passwordController.text,
-    });
-    Map<String, String> headers = {
-      'Content-type': 'application/json',
-      'Accept': 'application/json',
-    };
-    final response = await http.post(url, body: body, headers: headers);
-    // setState(() {
-    //   _status = json.decode(response.body)["Status"];
-    // });
-    print(response.body);
-    // final String status = json.decode(response.body)["Status"];
-    // return status;
-    final String resbody = response.body;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('StoreID', json.decode(resbody)["StoreID"]);
-    return resbody;
+    try {
+      var wifiIP = await WifiInfo().getWifiIP();
+      var url = "https://cloudpos.54ucl.com:8011/LoginConfirm";
+      var body = json.encode({
+        "IP": wifiIP,
+        "Account": accountController.text,
+        "PassWord": passwordController.text,
+      });
+      Map<String, String> headers = {
+        'Content-type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final response = await http.post(url, body: body, headers: headers);
+      // setState(() {
+      //   _status = json.decode(response.body)["Status"];
+      // });
+      print(response.body);
+      // final String status = json.decode(response.body)["Status"];
+      // return status;
+      final String resbody = response.body;
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('StoreID', json.decode(resbody)["StoreID"]);
+      await prefs.setString('StoreName', json.decode(resbody)["StoreName"]);
+      return resbody;
+    } catch (e) {
+      print(e);
+      return 'neterror';
+    }
   }
-
   @override
   TextEditingController accountController = new TextEditingController();
   TextEditingController passwordController = new TextEditingController();
@@ -53,7 +60,7 @@ class LoginPage extends StatelessWidget {
                 controller: accountController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.person),
-                  labelText: "Name *",
+                  labelText: "帳號 *",
                   hintText: "請輸入帳號",
                 ),
               ),
@@ -65,7 +72,7 @@ class LoginPage extends StatelessWidget {
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.lock),
                   suffixIcon: Icon(Icons.remove_red_eye),
-                  labelText: "Password *",
+                  labelText: "密碼 *",
                   hintText: "請輸入密碼",
                 ),
               ),
@@ -75,25 +82,46 @@ class LoginPage extends StatelessWidget {
             ),
             SizedBox(
                 width: MediaQuery.of(context).size.width - 48.0,
-                height: 48.0,
+                height: 60.0,
                 child: Row(
                   children: [
                     RaisedButton(
-                      child: Text("登入"),
+                      child: Text("登入" , style: new TextStyle(fontSize: 40),),
                       onPressed: () {
                         String status;
                         this.loginBTN().then((value) {
+                          if (value == 'neterror'){
+                            Alert(
+                              context: context,
+                              type: AlertType.error,
+                              title: "登入失敗",
+                              desc: "請檢查網路連線狀態",
+                              buttons: [
+                                DialogButton(
+                                  child: Text(
+                                    "確認",
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 20),
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                  width: 120,
+                                )
+                              ],
+                            ).show();
+                          }
                           status = json.decode(value)["Status"];
                           print(status);
                           if (status == "Success") {
+                            // logindata.add(json.decode(value)["StoreID"]);
+                            // logindata.add(json.decode(value)["StoreName"]);
                             Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (context) => HomePage(
-                                        data: json.decode(value)["StoreID"])));
+                                    builder: (context) => HomePage()));
                             print(json.decode(value)["StoreID"]);
+                            print(json.decode(value)["StoreName"]);
                           }
-                           else {
+                          else {
                             Alert(
                               context: context,
                               type: AlertType.error,
@@ -116,12 +144,12 @@ class LoginPage extends StatelessWidget {
                       },
                     ),
                     FlatButton(
-                      child: Text("註冊"),
+                      child: Text("註冊", style: new TextStyle(fontSize: 20)),
                       onPressed: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => RegisterPage()));
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => RegisterPage()));
                       },
                     ),
                   ],

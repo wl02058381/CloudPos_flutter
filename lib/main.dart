@@ -1,20 +1,27 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+// import 'package:flutter/material.dart';
+// import 'package:flutter/semantics.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:cloudpos_online/print.dart';
+// import 'package:cloudpos_online/print.dart';
+import 'package:cloudpos_online/chooseBT.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloudpos_online/login.dart';
 import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+//----print
+import 'package:flutter/material.dart' hide Image;
+import 'package:esc_pos_utils/esc_pos_utils.dart';
+import 'package:flutter/services.dart';
+import 'package:bluetooth_thermal_printer/bluetooth_thermal_printer.dart';
+import 'dart:typed_data';
+import 'package:image/image.dart';
+import 'package:intl/intl.dart';
+import 'package:rflutter_alert/rflutter_alert.dart';
 
-// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-// import 'package:flutter_downloader/flutter_downloader.dart';
-// import 'package:path_provider/path_provider.dart';
-// import 'package:permission_handler/permission_handler.dart';
+//----
 void main() {
   // runApp(MaterialApp(home: HomePage(), debugShowCheckedModeBanner: false));
   runApp(MaterialApp(home: LoginPage(), debugShowCheckedModeBanner: false));
@@ -30,7 +37,14 @@ class FoodInfo {
   FoodInfo(this.orderTempID, this.price, this.diningStyle, this.mealDate);
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
+  String data;
+  HomePage({this.data}); //StoreName
+  @override
+  HomePageState createState() => HomePageState();
+}
+
+class HomePageState extends State<HomePage> {
   loginclean() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('savedrawList', []);
@@ -42,29 +56,43 @@ class HomePage extends StatelessWidget {
     return storeID;
   }
 
+  Future<String> getstorename() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String storeName = prefs.getString('StoreName');
+    setState(() {
+      storeName = storeName;
+    });
+    return storeName;
+  }
+
   String data;
-  HomePage({this.data});  //StoreID
+  String storeName;
+  HomePageState({this.data}); //StoreName
+
   @override
   Widget build(BuildContext context) {
+    print("HomePageStatebuild");
+
     return SafeArea(
         child: Scaffold(
       body: Container(
           child: Center(
         child: SizedBox(
             width: 200,
-            height: 400,
+            height: 500,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Text("哈囉簡餐店", style: TextStyle(fontSize: 32.0)),
+                Text(storeName ?? this.storeName,
+                    style: TextStyle(fontSize: 32.0)),
                 Text("店家系統", style: TextStyle(fontSize: 24.0)),
                 ButtonTheme(
                     minWidth: 200.0,
                     height: 70.0,
                     buttonColor: Colors.white70,
                     child: RaisedButton(
-                      child: Text("出單管理", style: TextStyle(fontSize: 22.0)),
+                      child: Text("出單系統", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
                         Navigator.push(
                             context,
@@ -77,7 +105,7 @@ class HomePage extends StatelessWidget {
                     height: 70.0,
                     buttonColor: Colors.white70,
                     child: RaisedButton(
-                      child: Text("後台管理", style: TextStyle(fontSize: 22.0)),
+                      child: Text("後台設定", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
                         String storeid;
                         getstoreid().then((value) => storeid = value);
@@ -88,8 +116,15 @@ class HomePage extends StatelessWidget {
                                       url:
                                           'https://cloudpos.54ucl.com:3010/?s=' +
                                               storeid,
-                                      // url:'data:image/octet-stream;base64,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hjlNx6zq2YrrjOnYhOAN+jfacLKZU37MfGU3gb25EkAGXYpb7L8AIg3SongN/qcFEAFk8KW4xREIIAJIi+I1+J8WQBoACBIDxrlixIiZMBSxyjpyTFrL999/X6677rpy5513li233HLaMJ944ony5ptvlttuu61ssskmLgteeeWV8vzzz5dbbrmlPPnkk+Wtt96q3vn333/LGWecUe69996y2WablWuuuabccccdZeutt2bYOUnbRABmVg1PeYk5vYjaYoI9TF/TTroAgtltJ+Tuu+++8sknn3QR2AJiAv/OO+9UAj71MWB/9dVX1a8eeuihYt95//33q/8+99xzFWD++eefsvvuu5fXX3+9ev+oo44q7777bnVS0P5/p512YmSgCCA+uwQQQpSiGuTvv/8uRx55ZNl0003LxRdfPNmCaZKTTz653HzzzS5Afvnll7LrrrtW7/z+++8VGEwz/PHHH8W+29ESP/74Y9lmm22qjN2ffvqpbLvtttW/jz766PLMM8/ATF5vqAKIAFJxoF8m1qefflr23Xffst9++02aV99++235888/ywcffFDuuusuFyBTp+q4444rw8PD5cEHHyw33XRTefrppyutY6Ax08y00xZbbFH22muv8uWXX5YddtiBgPv/SQUQAaRvAPntt9/K3nvvXU444YTKROrsRF977bXVym6mkO3yeyaWddTMrEsuuaQ88sgj5Ysvvqi0hgHEgHLVVVdVPogVlTCAbLXVVmW33XardsINkFZYYp999qGAIoD0AMjo6GhXqgkqw8hk2DJOuk3sqlWrQhOKSkZalQ6zz+sPSjVB5Sm991GHIqVHzWG+5557yocfflj5CZ3n+OOPL4cffni59dZbq/PT5lQ/8MAD5cwzz5zW1Lp16yqAmZAbwEzo7TEn9sUXX5xGe/nll5ftt9++2EU1Tz31VAWcQw89tAKg97DlW1HKESqpii4LWr58eVcJWa/06OLFi7uqrXjlQNHYmNKj6H1PDoeiB6baAkhbZk80hyjqV8yEYFv1TfDvvvvu8vjjj5cDDzxwEiDffPNNZQa9+uqrlcAY3f3331990swoA4Jpgs7z7LPPFvNFNtpoo5ma7fr7AQccUJl33sNEApnIUvb0Iuovs9DSjKq9kD4wJYD0ngLzCwxsF154YTnppJMqgJjWsDDvpZdeWswvee2116qP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',
-                                      withLocalStorage: true,
+                                      // withLocalStorage: true,
+
+                                      withJavascript: true,
+                                      hidden: true,
+                                      withZoom: true,
+                                      initialChild: Container(
+                                          child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      )),
                                       appBar:
                                           new AppBar(title: new Text('後台設定')),
                                     )
@@ -112,6 +147,19 @@ class HomePage extends StatelessWidget {
                     height: 70.0,
                     buttonColor: Colors.white70,
                     child: RaisedButton(
+                      child: Text("設備選擇", style: TextStyle(fontSize: 22.0)),
+                      onPressed: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => ChooseBT()));
+                      },
+                    )),
+                ButtonTheme(
+                    minWidth: 200.0,
+                    height: 70.0,
+                    buttonColor: Colors.white70,
+                    child: RaisedButton(
                       child: Text("登出", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
                         loginclean();
@@ -126,8 +174,32 @@ class HomePage extends StatelessWidget {
       )),
     ));
   }
-}
 
+  @override
+  void initState() {
+    getstorename().then((value) => {storeName = value});
+    setConnect() async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String mac = prefs.getString('mac');
+      if (mac == null) {
+        print("藍芽未連線");
+      }
+      print("mac");
+      print(mac);
+      final String result = await BluetoothThermalPrinter.connect(mac);
+      print("state conneected $result");
+    }
+
+    setConnect();
+    super.initState();
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+    // if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();
+  }
+}
+// class HomePageState extends State<HomePage>{
+
+// }
 class CloudPos extends StatefulWidget {
   @override
   CloudPosState createState() => CloudPosState();
@@ -135,8 +207,11 @@ class CloudPos extends StatefulWidget {
 
 class CloudPosState extends State<CloudPos> {
   final String url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
-  String data;
+  String clouddata;
   dynamic order_data = {};
+  Timer _timer;
+  int seconds;
+  List<String> _orderdrawlist = List<String>();
   Future<String> getSWData(paid, del) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
@@ -148,33 +223,73 @@ class CloudPosState extends State<CloudPos> {
     };
     final response = await http.post(url, body: body, headers: headers);
     setState(() {
-      data = response.body;
+      clouddata = response.body;
     });
     return "Success!";
   }
 
-  String title = "(未結帳訂單)";
+  Future<String> searchSWData(searchText) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String storeID = prefs.getString('StoreID');
+    var url = "https://cloudpos.54ucl.com:8011/GetSearchTempOrder";
+    var body = json.encode({
+      "Token": "GetRow.Token",
+      "StoreID": storeID,
+      "MealID": searchText,
+      "Paid": "-1",
+      "Del": "-1"
+    });
+    Map<String, String> headers = {
+      'Content-type': 'application/json',
+      'Accept': 'application/json',
+    };
+    final response = await http.post(url, body: body, headers: headers);
+    print(response.body);
+    // if  (json.decode(response.body)["Data"]
+    title = "(編號搜尋)";
+    setState(() {
+      clouddata = response.body;
+    });
+    return "Success!";
+  }
+
+  Future<List> _getOrderdraw() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final myStringList = prefs.getStringList('saveorderdrawList');
+    print("QQ");
+    print(myStringList);
+    if (myStringList != null) {
+      setState(() {
+        _orderdrawlist = myStringList;
+      });
+    }
+    return myStringList;
+  }
+
+  String title = "(未結帳訂單)"; //預設title
 
   @override
+  TextEditingController searchController = new TextEditingController();
   Widget build(BuildContext context) {
-    // this.getSWData('0', '0');
+    print("CloudPosStatebuild");
     var diningStyle = new List();
     var dining = new List();
     var cardcolor = new List();
     var btncolor = Colors.orange;
     try {
-      for (var i = 0; i < json.decode(data)["Data"].length; i++) {
-        dining.add(json.decode(data)["Data"][i]["DiningStyle"]);
-        if (json.decode(data)["Data"][i]["DiningStyle"] == "TakeOut") {
-          diningStyle.add("外帶-電話：" + json.decode(data)["Data"][i]["Phone"]);
+      for (var i = 0; i < json.decode(clouddata)["Data"].length; i++) {
+        dining.add(json.decode(clouddata)["Data"][i]["DiningStyle"]);
+        if (json.decode(clouddata)["Data"][i]["DiningStyle"] == "TakeOut") {
+          diningStyle
+              .add("外帶-電話：" + json.decode(clouddata)["Data"][i]["Phone"]);
           cardcolor.add(Colors.black12);
         } else {
-          diningStyle.add("內用-桌號：" + json.decode(data)["Data"][i]["Table"]);
+          diningStyle
+              .add("內用-桌號：" + json.decode(clouddata)["Data"][i]["Table"]);
           cardcolor.add(Colors.black26);
         }
       }
-      print(diningStyle);
-
+      // print(diningStyle);
       return Scaffold(
         appBar: AppBar(
             leading: IconButton(
@@ -198,41 +313,83 @@ class CloudPosState extends State<CloudPos> {
                     children: [
                       Text("   "),
                       FlatButton(
+                        height: 80.0,
                         color: btncolor,
                         textColor: Colors.white,
-                        child: Text('未結帳訂單'),
+                        child: Text('未結帳訂單', style: TextStyle(fontSize: 20.0)),
                         onPressed: () {
-                          setState(() {
-                            title = '(未結帳訂單)';
-                            btncolor = Colors.red;
+                          this.getSWData('0', '0').then((value) {
+                            setState(() {
+                              title = '(未結帳訂單)';
+                              btncolor = Colors.red;
+                            });
                           });
-                          this.getSWData('0', '0');
                         },
                       ),
                       Text("   "),
                       // Spacer(),
                       FlatButton(
+                        height: 80.0,
                         color: Colors.pink,
                         textColor: Colors.white,
-                        child: Text('已結帳訂單'),
+                        child: Text('已結帳訂單', style: TextStyle(fontSize: 20.0)),
                         onPressed: () {
-                          setState(() {
-                            title = '(已結帳訂單)';
+                          this.getSWData('1', '0').then((value) {
+                            setState(() {
+                              title = '(已結帳訂單)';
+                            });
                           });
-                          this.getSWData('1', '0');
                         },
                       ),
                       Text("   "),
                       // Spacer(),
                       FlatButton(
+                        height: 80.0,
                         color: Theme.of(context).primaryColor,
                         textColor: Colors.white,
-                        child: Text('歷史紀錄'),
+                        child: Text('歷史紀錄', style: TextStyle(fontSize: 20.0)),
                         onPressed: () {
-                          setState(() {
-                            title = '(歷史紀錄)';
+                          this.getSWData('-1', '0').then((value) {
+                            setState(() {
+                              title = '(歷史紀錄)';
+                            });
                           });
-                          this.getSWData('-1', '-1');
+                        },
+                      ),
+                      Text("   "),
+                      FlatButton(
+                        height: 80.0,
+                        color: Theme.of(context).textSelectionHandleColor,
+                        textColor: Colors.white,
+                        child: Text('編號搜尋', style: TextStyle(fontSize: 20.0)),
+                        onPressed: () {
+                          Alert(
+                              context: context,
+                              title: "編號搜尋",
+                              content: Column(
+                                children: <Widget>[
+                                  TextField(
+                                    controller: searchController,
+                                    decoration: InputDecoration(
+                                      icon: Icon(Icons.search_rounded),
+                                      labelText: '輸入編號',
+                                    ),
+                                  )
+                                ],
+                              ),
+                              buttons: [
+                                DialogButton(
+                                  onPressed: () {
+                                    searchSWData(searchController.text);
+                                    Navigator.pop(context);
+                                  },
+                                  child: Text(
+                                    "搜尋",
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 20),
+                                  ),
+                                )
+                              ]).show();
                         },
                       )
                     ],
@@ -242,7 +399,8 @@ class CloudPosState extends State<CloudPos> {
           color: Colors.white,
         ),
         body: ListView.builder(
-          itemCount: data == null ? 0 : json.decode(data)["Data"].length,
+          itemCount:
+              clouddata == null ? 0 : json.decode(clouddata)["Data"].length,
           itemBuilder: (BuildContext context, int index) {
             return Container(
               child: Center(
@@ -250,6 +408,9 @@ class CloudPosState extends State<CloudPos> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     Card(
+                      color: _orderdrawlist.contains(order_data["OrderID"])
+                          ? Colors.red.withOpacity(0.3)
+                          : Colors.white,
                       child: new InkWell(
                           onTap: () {
                             print("Card按鈕");
@@ -258,24 +419,36 @@ class CloudPosState extends State<CloudPos> {
                                 MaterialPageRoute(
                                     builder: (context) => BPage(order_data: {
                                           "orderTempID": json
-                                              .decode(data)["Data"][index]
+                                              .decode(clouddata)["Data"][index]
                                                   ["MealID"]
                                               .toString(),
                                           "diningStyle": diningStyle[index],
-                                          "price": json.decode(data)["Data"]
-                                              [index]["TotalPrice"],
-                                          "OrderTemp": json.decode(data)["Data"]
-                                              [index]["OrderTemp"],
-                                          "DataTime": json.decode(data)["Data"]
-                                              [index]["DataTime"],
-                                          "MealTime": json.decode(data)["Data"]
-                                              [index]["MealTime"],
+                                          "price":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["TotalPrice"],
+                                          "OrderTemp":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["OrderTemp"],
+                                          "DataTime":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["DataTime"],
+                                          "MealTime":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["MealTime"],
                                           "DiningStyleID":
-                                              json.decode(data)["Data"][index]
-                                                  ["DiningStyleID"],
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["DiningStyleID"],
                                           "dining": dining[index],
-                                          "OrderID": json.decode(data)["Data"]
-                                              [index]["OrderID"]
+                                          "OrderID":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["OrderID"],
+                                          "Phone":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["Phone"],
+                                          "Table":
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["Table"],
+                                          "title": title
                                         })));
                           },
                           child: Container(
@@ -286,24 +459,27 @@ class CloudPosState extends State<CloudPos> {
                                     MainAxisAlignment.spaceAround,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: <Widget>[
-                                  Text("編號:" +
-                                      json
-                                          .decode(data)["Data"][index]["MealID"]
-                                          .toString()),
+                                  Text(
+                                      "編號:" +
+                                          json
+                                              .decode(clouddata)["Data"][index]
+                                                  ["MealID"]
+                                              .toString(),
+                                      style: new TextStyle(fontSize: 24)),
                                   Text(
                                       "價錢:" +
-                                          json.decode(data)["Data"][index]
+                                          json.decode(clouddata)["Data"][index]
                                               ["TotalPrice"],
                                       style: TextStyle(
-                                          fontSize: 18.0, color: Colors.red)),
+                                          fontSize: 22.0, color: Colors.red)),
                                   Column(
                                     children: [
                                       Text(diningStyle[index],
                                           style: TextStyle(fontSize: 17.2)),
                                       Text(
                                           "時間：" +
-                                              json.decode(data)["Data"][index]
-                                                  ["DataTime"],
+                                              json.decode(clouddata)["Data"]
+                                                  [index]["DataTime"],
                                           style: TextStyle(
                                               fontSize: 14.0,
                                               color: Colors.black87)),
@@ -321,28 +497,45 @@ class CloudPosState extends State<CloudPos> {
       );
     } catch (e) {
       return Scaffold(
-        backgroundColor: Colors.blue[900],
-        body: Center(
-        child:SpinKitFadingCircle(
-        size: 100.0,
-        itemBuilder: (BuildContext context, int index) {
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              color: index.isEven ? Colors.red : Colors.green,
-            ),
-          );
-        },
-      )
-      )
-      );
+          backgroundColor: Colors.blue[900],
+          body: Center(
+              child: SpinKitFadingCircle(
+            size: 100.0,
+            itemBuilder: (BuildContext context, int index) {
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: index.isEven ? Colors.red : Colors.green,
+                ),
+              );
+            },
+          )));
     }
   }
 
   @override
   void initState() {
+    // print("安安");
     this.getSWData('0', '0');
+    startTimer();
     super.initState();
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     // if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();
+  }
+
+  void startTimer() {
+    //設定 1 秒回撥一次
+    const period = const Duration(seconds: 30);
+    _timer = Timer(period, () {
+      //更新介面
+      if (title == '(未結帳訂單)') {
+        this.getSWData('0', '0');
+      } else if (title == "(已結帳訂單)") {
+        this.getSWData('1', '0');
+      } else if (title == "(歷史紀錄)") {
+        this.getSWData('-1', '0');
+      }
+    });
   }
 }
 
@@ -360,7 +553,6 @@ class BPage extends StatefulWidget {
     //上述的組件就是這個
   }
 // BPageState createState() => BPageState();
-
 }
 
 class BPageState extends State<BPage> {
@@ -369,16 +561,17 @@ class BPageState extends State<BPage> {
   bool isSelected = false;
   dynamic order_data;
   BPageState({this.order_data});
-  final List<Map<String, dynamic>> data = [];
+  List<Map<String, dynamic>> data = [];
   var choiceCard = new List();
   // var cardColor = new List();
   // Color _cardColor1 = Colors.white;
   List<int> _selectedItems = List<int>();
   List<String> _drawlist = List<String>();
+  List<String> _orderdrawlist = List<String>();
   // TextDecoration _lineThrough = TextDecoration.none;
-  Color _cardColor2 = Colors.white;
+  // Color _cardColor2 = Colors.white;
   // TextDecoration _lineThrough2 = TextDecoration.none;
-  String applydata;
+  // String applydata;
   Future<String> orderApply(orderid, totalprice, mealid) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
@@ -395,11 +588,12 @@ class BPageState extends State<BPage> {
       'Accept': 'application/json',
     };
     final response = await http.post(url, body: body, headers: headers);
-    setState(() {
-      applydata = response.body;
-    });
+    print(json.decode(response.body)["Status"]);
+    // setState(() {
+    //   applydata = response.body;
+    // });
     print("applydata Success!");
-    return "applydata Success!";
+    return response.body;
   }
 
   Future<String> cancelApply(orderid) async {
@@ -433,6 +627,164 @@ class BPageState extends State<BPage> {
     return myStringList;
   }
 
+  Future<String> getstorename() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String storeName = prefs.getString('StoreName');
+    return storeName;
+  }
+
+  Future<String> getmac() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String mac = prefs.getString('mac');
+    // prefs.remove('mac');
+    return mac;
+  }
+
+  Future<Ticket> getGraphicsTicket(ticketdata) async {
+    int total = 0;
+    final ticket = Ticket(PaperSize.mm80);
+    // Image assets
+    // final ByteData data = await rootBundle.load('assets/store.png');
+    // final Uint8List bytes = data.buffer.asUint8List();
+    // final Image image = decodeImage(bytes);
+    // print("here");
+    // print(ticketdata);
+    String storeName;
+    // ticket.image(image); //圖片
+    // getstorename().then((value) {
+    // storeName = value;
+    storeName = await getstorename();
+    ticket.text(
+      '${storeName}',
+      containsChinese: true,
+      styles: PosStyles(
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2),
+      linesAfter: 1,
+    );
+    // });
+    String dintext;
+    String phone;
+    String table;
+    String mealID;
+    var now = new DateTime.now();
+    // DateTime date = new DateTime(
+    //     now.year, now.month, now.day, now.hour, now.month, now.second);
+    var formatter = new DateFormat('yyyy-MM-dd h:m:s');
+    String formattedDate = formatter.format(now);
+    mealID = ticketdata[0]['MealID'];
+    if (ticketdata[0]['DiningStyle'] == "TakeOut") {
+      dintext = "外帶";
+      phone = ticketdata[0]['Phone'];
+      ticket.row([
+        PosColumn(text: '編號：     ${mealID}', width: 4, containsChinese: true),
+        PosColumn(text: '用餐方式：${dintext}', width: 8, containsChinese: true),
+      ]);
+      ticket.row([
+        PosColumn(text: '電話：', width: 4, containsChinese: true),
+        PosColumn(text: '${phone}', width: 8, containsChinese: true),
+      ]);
+      // ticket.row([
+      //   PosColumn(text: '', width: 4, styles: PosStyles(bold: true)),
+      //   PosColumn(text: '出單時間：     ${date}', width: 8, containsChinese: true),
+      // ]);
+      ticket.text('出單時間：             ${formattedDate}', containsChinese: true);
+    } else if (ticketdata[0]['DiningStyle'] == "Intermal") {
+      dintext = "內用";
+      table = ticketdata[0]['Table'];
+      ticket.row([
+        PosColumn(text: '編號：     ${mealID}', width: 4, containsChinese: true),
+        PosColumn(text: '用餐方式：${dintext}', width: 8, containsChinese: true),
+      ]);
+      ticket.row([
+        PosColumn(text: '', width: 4, styles: PosStyles(bold: true)),
+        PosColumn(text: '桌號：     ${table}', width: 8, containsChinese: true),
+      ]);
+      // ticket.row([
+      //   PosColumn(text: '', width: 4, styles: PosStyles(bold: true)),
+      //   PosColumn(text: '出單時間：     ${date}', width: 8, containsChinese: true),
+      // ]);
+      ticket.text('出單時間：             ${formattedDate}', containsChinese: true);
+    }
+
+    // ticket.text('用餐方式${dintext}', containsChinese: true);
+    ticket.text('--------------------------------');
+    for (var i = 1; i < ticketdata.length; i++) {
+      // print("INININININNIN");
+      total += ticketdata[i]['total_price'];
+      ticket.text(i.toString());
+      ticket.text(ticketdata[i]['title'],
+          containsChinese: true, styles: PosStyles(align: PosAlign.center));
+      // styles: PosStyles(
+      //     codeTable: PosCodeTable.westEur,
+      //     height: PosTextSize.size1,
+      //     width: PosTextSize.size1));
+      // ticket.text('-------');
+      for (var j = 0; j < ticketdata[i]['ChoiceIDList'].length; j++) {
+        ticket.text(ticketdata[i]['ChoiceIDList'][j]['ChoiceName'],
+            containsChinese: true);
+      }
+      print(ticketdata[i]['Remark']);
+      if (ticketdata[i]['Remark'] == '') {
+        ticketdata[i]['Remark'] = '無';
+      }
+      ticket.row([
+        PosColumn(text: '備註 ', containsChinese: true, width: 1),
+        PosColumn(
+            text: '：${ticketdata[i]['Remark']}',
+            containsChinese: true,
+            width: 11,
+            styles: PosStyles(align: PosAlign.left)),
+      ]);
+      ticket.row([
+        PosColumn(
+            text: '小計：     ${ticketdata[i]['price']} x ${ticketdata[i]['qty']}',
+            width: 6,
+            containsChinese: true),
+        PosColumn(text: 'TW ${ticketdata[i]['total_price']}', width: 6),
+      ]);
+      ticket.text('--------------------------------');
+      ticket.feed(1);
+    }
+
+    ticket.feed(1);
+    ticket.row([
+      PosColumn(text: '總額', containsChinese: true, width: 6),
+      PosColumn(text: 'TW ${ticketdata[0]['allprice']}', width: 6),
+    ]);
+    ticket.feed(2);
+    ticket.text('謝謝光臨',
+        containsChinese: true, styles: PosStyles(align: PosAlign.center));
+    ticket.cut();
+
+    return ticket;
+  }
+
+  Future<String> ifprintOpen() async {
+    String isConnected = await BluetoothThermalPrinter.connectionStatus;
+    if (isConnected == "true") {
+      return "Connected";
+    } else {
+      //Hadnle Not Connected Senario
+      return "notConnected";
+    }
+  }
+
+  Future<void> printGraphics(data) async {
+    String isConnected = await BluetoothThermalPrinter.connectionStatus;
+    if (isConnected == "true") {
+      print("printGraphics:" + data);
+      Ticket ticket = await getGraphicsTicket(data);
+      final result = await BluetoothThermalPrinter.writeBytes(ticket.bytes);
+      print("Print $result");
+      // return "Ok";
+    } else {
+      //Hadnle Not Connected Senario
+      // return "notConnected";
+    }
+  }
+
   _remove(orderid, index) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final myStringList = prefs.getStringList('savedrawList') ?? [];
@@ -446,7 +798,6 @@ class BPageState extends State<BPage> {
         _drawlist = myStringList;
       });
     }
-
     print(_drawlist);
     return myStringList;
   }
@@ -463,8 +814,255 @@ class BPageState extends State<BPage> {
     return myStringList;
   }
 
+  Future<List> _getOrderdraw() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final myStringList = prefs.getStringList('saveorderdrawList');
+    print(myStringList);
+    if (myStringList != null) {
+      setState(() {
+        _orderdrawlist = myStringList;
+      });
+    }
+    return myStringList;
+  }
+
+  _setOrderdraw(list) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setStringList("saveorderdrawList", list);
+  }
+  //-------------------------------------------出單機-------------------------------------------
+  // Future<void> _startPrint(PrinterBluetooth printer) async {
+  //   _printerManager.selectPrinter(printer);
+  //   final result =
+  //       await _printerManager.printTicket(await _ticket(PaperSize.mm80));
+  //   showDialog(
+  //     context: context,
+  //     builder: (_) => AlertDialog(
+  //       content: Text(result.msg),
+  //     ),
+  //   );
+  // }
+
+  //-------------------------------------------出單機-------------------------------------------
+
   Widget build(BuildContext context) {
-    print(order_data["dining"]);
+    print("BPageStatebuild");
+    // print(order_data["title"]);
+    data = [];
+    data.add({
+      "DiningStyle": order_data["dining"],
+      "Phone": order_data["Phone"],
+      "Table": order_data["Table"],
+      "MealID": order_data["orderTempID"],
+      "allprice": order_data["price"]
+    });
+    // });
+    //-----Order畫單
+    // List order_drawList = [];
+    // List<String> draw_OrderID = [];
+    // print("aaa");
+    // print(json.decode(order_data["OrderTemp"]).length);
+    // print(_drawlist);
+    // for (var j = 0; j < json.decode(order_data["OrderTemp"]).length; j++) {
+    //   print("j:" + j.toString());
+    //   print(order_data["OrderID"] + j.toString());
+    //   if (_drawlist.contains(order_data["OrderID"] + j.toString())) {
+    //     order_drawList.add('1');
+    //   } else {
+    //     order_drawList.add('0');
+    //   }
+    // }
+    // order_drawList.every((element) => element == '1');
+    // print(order_drawList.every((element) => element == '1'));
+    // if (order_drawList.every((element) => element == '1') == false) {
+    //   print("hello");
+    //   _getOrderdraw().then((value) {
+    //     draw_OrderID = value;
+    //     if (draw_OrderID == null) {
+    //       draw_OrderID = [];
+    //     }
+    //     draw_OrderID.add(order_data["OrderID"]);
+    //     _setOrderdraw(draw_OrderID);
+    //   });
+    // }
+    //-----Order畫單
+    Widget child;
+    if (order_data['title'] == "(已結帳訂單)") {
+      child = FlatButton(
+        minWidth: 120,
+        color: Theme.of(context).primaryColor,
+        textColor: Colors.white,
+        child: Text('補單', style: new TextStyle(fontSize: 20)),
+        onPressed: () {
+          getmac().then((value) {
+            if (value == null) {
+              return Alert(
+                context: context,
+                type: AlertType.error,
+                title: "您尚未連接上出單機",
+                desc: "請回到主頁點選設備選擇",
+                buttons: [
+                  DialogButton(
+                    height: 80,
+                    width: 120,
+                    child: Text(
+                      "確認",
+                      style: TextStyle(color: Colors.white, fontSize: 40),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  )
+                ],
+              ).show();
+            } else {
+              ifprintOpen().then((value) {
+                if (value == "Connected") {
+                  printGraphics(data);
+                } else if (value == "notConnected") {
+                  return Alert(
+                    context: context,
+                    type: AlertType.error,
+                    title: "您尚未連接上出單機",
+                    desc: "請確認有將出單機開啟",
+                    buttons: [
+                      DialogButton(
+                        height: 80,
+                        width: 120,
+                        child: Text(
+                          "確認",
+                          style: TextStyle(color: Colors.white, fontSize: 40),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      )
+                    ],
+                  ).show();
+                }
+              });
+            }
+          });
+        },
+      );
+    } else {
+      child = FlatButton(
+        minWidth: 120,
+        color: Theme.of(context).primaryColor,
+        textColor: Colors.white,
+        child: Text('結帳', style: new TextStyle(fontSize: 20)),
+        onPressed: () {
+          getmac().then((value) {
+            if (value == null) {
+              return Alert(
+                context: context,
+                type: AlertType.error,
+                title: "您尚未連接上出單機",
+                desc: "請回到主頁點選設備選擇",
+                buttons: [
+                  DialogButton(
+                    height: 80,
+                    width: 120,
+                    child: Text(
+                      "確認",
+                      style: TextStyle(color: Colors.white, fontSize: 40),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  )
+                ],
+              ).show();
+            } else {
+              Alert(
+                context: context,
+                type: AlertType.info,
+                title: "確定要結帳嗎",
+                desc: "點選確認即結帳完成並開始出單",
+                buttons: [
+                  DialogButton(
+                    height: 80,
+                    width: 120,
+                    child: Text(
+                      "確認",
+                      style: TextStyle(color: Colors.white, fontSize: 40),
+                    ),
+                    onPressed: () {
+                      // print(data);
+                      //測試用
+                      // orderApply(order_data["OrderID"], order_data['price'],
+                      //             order_data['orderTempID'])
+                      //         .then((value) => Navigator.push(
+                      //             context,
+                      //             MaterialPageRoute(
+                      //                 builder: (_) => CloudPos())));
+                      //測試用
+                      ifprintOpen().then((value) {
+                        if (value == "Connected") {
+                          orderApply(order_data["OrderID"], order_data['price'],
+                                  order_data['orderTempID'])
+                              .then((value) {
+                            if (json.decode(value)["Status"] == "Success") {
+                              printGraphics(data);
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => CloudPos()));
+                            } else {
+                              return Alert(
+                                context: context,
+                                type: AlertType.error,
+                                title: "結帳失敗",
+                                desc: json.decode(value)["msg"],
+                                buttons: [
+                                  DialogButton(
+                                    height: 80,
+                                    width: 120,
+                                    child: Text(
+                                      "確認",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 40),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  )
+                                ],
+                              ).show();
+                            }
+                          });
+                        } else if (value == "notConnected") {
+                          return Alert(
+                            context: context,
+                            type: AlertType.error,
+                            title: "您尚未連接上出單機",
+                            desc: "請確認有將出單機開啟",
+                            buttons: [
+                              DialogButton(
+                                height: 80,
+                                width: 120,
+                                child: Text(
+                                  "確認",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 40),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              )
+                            ],
+                          ).show();
+                        }
+                      });
+                    },
+                  )
+                ],
+              ).show();
+            }
+          });
+        },
+      );
+    }
     if (order_data["dining"] == "Intermal") {
       return Scaffold(
           appBar: AppBar(
@@ -476,15 +1074,18 @@ class BPageState extends State<BPage> {
                 children: [
                   Column(
                     children: [
-                      Text("編號：" + order_data['orderTempID']),
-                      Text(order_data["diningStyle"]),
+                      Text("編號：" + order_data['orderTempID'],
+                          style: new TextStyle(fontSize: 20)),
+                      Text(order_data["diningStyle"],
+                          style: new TextStyle(fontSize: 22)),
                     ],
                   ),
                   Spacer(),
                   Column(
                     // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Text("訂單時間：" + order_data['DataTime']),
+                      Text("訂單時間：" + order_data['DataTime'],
+                          style: new TextStyle(fontSize: 16)),
                       // Text("桌單號碼：" + order_data["DiningStyleID"]),
                     ],
                   )
@@ -497,6 +1098,7 @@ class BPageState extends State<BPage> {
                         ? 0
                         : json.decode(order_data["OrderTemp"]).length,
                     itemBuilder: (BuildContext context, int index) {
+                      print(index);
                       choiceCard = [];
                       if (json
                               .decode(order_data["OrderTemp"])[index]
@@ -511,18 +1113,29 @@ class BPageState extends State<BPage> {
                                     .length;
                             k++) {
                           choiceCard.add(
-                            Text("細項名稱：" +
-                                (json.decode(order_data["OrderTemp"])[index]
-                                    ["ChoiceIDList"][k])["ChoiceName"]),
+                            Text(
+                                "細項名稱：" +
+                                    (json.decode(order_data["OrderTemp"])[index]
+                                        ["ChoiceIDList"][k])["ChoiceName"],
+                                style: new TextStyle(fontSize: 16)),
                           );
                         }
-                        final totalPrice = int.parse(
-                                json.decode(order_data["OrderTemp"])[index]
-                                    ["ItemPrice"]) *
-                            int.parse(
-                                json.decode(order_data["OrderTemp"])[index]
-                                    ["Count"]);
-                        print(totalPrice);
+                        var totalPrice = 0;
+                        try {
+                          totalPrice = int.parse(
+                                  json.decode(order_data["OrderTemp"])[index]
+                                      ["ItemPrice"]) *
+                              int.parse(
+                                  json.decode(order_data["OrderTemp"])[index]
+                                      ["Count"]);
+                        } catch (e) {
+                          totalPrice = int.parse(
+                                  json.decode(order_data["OrderTemp"])[index]
+                                      ["ItemPrice"]) *
+                              json.decode(order_data["OrderTemp"])[index]
+                                  ["Count"];
+                        }
+                        // print(totalPrice);
                         data.add({
                           'title': json.decode(order_data["OrderTemp"])[index]
                               ["FoodName"],
@@ -534,18 +1147,13 @@ class BPageState extends State<BPage> {
                           'total_price': totalPrice,
                           'ChoiceIDList':
                               json.decode(order_data["OrderTemp"])[index]
-                                  ["ChoiceIDList"]
+                                  ["ChoiceIDList"],
+                          'Remark': json.decode(order_data["OrderTemp"])[index]
+                              ["Remark"]
                         });
                       }
-                      // List<String> drawlist;
-                      // _getdraw()
-                      // .then((value) {
-                      //   drawlist = value;
-                      //   print(_drawlist);
-                      //   print('---');
-                      // });
-                      print('here');
-                      print(_drawlist);
+                      // print('here');
+                      // print(_drawlist);
                       return Center(
                           child: Column(children: [
                         GestureDetector(
@@ -602,6 +1210,265 @@ class BPageState extends State<BPage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.center,
                                       children: <Widget>[
+                                        Row(
+                                          children: [
+                                            Column(
+                                              children: [
+                                                Text(
+                                                    "品名：" +
+                                                        json
+                                                                .decode(order_data[
+                                                                    "OrderTemp"])[
+                                                            index]["FoodName"],
+                                                    style: TextStyle(
+                                                        fontSize: 18,
+                                                        color: Colors.red,
+                                                        decoration: (_selectedItems
+                                                                    .contains(
+                                                                        index)) ||
+                                                                _drawlist.contains(
+                                                                    order_data[
+                                                                            "OrderID"] +
+                                                                        index
+                                                                            .toString())
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : TextDecoration
+                                                                .none)),
+                                                Text(
+                                                  "單價 " +
+                                                      json.decode(order_data[
+                                                              "OrderTemp"])[
+                                                          index]["ItemPrice"] +
+                                                      " " +
+                                                      "X" +
+                                                      " 數量：" +
+                                                      json.decode(order_data[
+                                                              "OrderTemp"])[
+                                                          index]["Count"],
+                                                  style: TextStyle(
+                                                      decoration: (_selectedItems
+                                                                  .contains(
+                                                                      index)) ||
+                                                              _drawlist.contains(
+                                                                  order_data[
+                                                                          "OrderID"] +
+                                                                      index
+                                                                          .toString())
+                                                          ? TextDecoration
+                                                              .lineThrough
+                                                          : TextDecoration
+                                                              .none),
+                                                ),
+                                              ],
+                                            ),
+                                            Column(
+                                              children: [
+                                                Text(
+                                                    "備註：" +
+                                                        json.decode(order_data[
+                                                                "OrderTemp"])[index]
+                                                            ["Remark"],
+                                                    style: TextStyle(
+                                                        fontSize: 18,
+                                                        color: Colors
+                                                            .indigoAccent,
+                                                        decoration: (_selectedItems
+                                                                    .contains(
+                                                                        index)) ||
+                                                                _drawlist.contains(
+                                                                    order_data["OrderID"] +
+                                                                        index
+                                                                            .toString())
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : TextDecoration
+                                                                .none)),
+                                              ],
+                                            ),
+                                            Column(
+                                              children: [
+                                                // Text("單品項價錢" +
+                                                //     json.decode(order_data["OrderTemp"])[index]
+                                                //         ["FoodPrice"]),
+                                                ...choiceCard,
+                                                // Text("總額：" + order_data['price']),
+                                              ],
+                                            ),
+                                          ],
+                                        )
+                                      ],
+                                    ))))
+                      ]));
+                    }),
+              )),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                FlatButton(
+                  minWidth: 120,
+                  color: Colors.redAccent,
+                  textColor: Colors.white,
+                  child: Text('取消訂單', style: new TextStyle(fontSize: 20)),
+                  onPressed: () {
+                    Alert(
+                      context: context,
+                      type: AlertType.error,
+                      title: "確定要取消訂單嗎",
+                      desc: "取消訂單後不會出現在歷史資料",
+                      buttons: [
+                        DialogButton(
+                          height: 80,
+                          width: 120,
+                          child: Text(
+                            "確認",
+                            style: TextStyle(color: Colors.white, fontSize: 40),
+                          ),
+                          onPressed: () {
+                            cancelApply(order_data["OrderID"]).then((value) =>
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => CloudPos())));
+                          },
+                        )
+                      ],
+                    ).show();
+                  },
+                ),
+                child
+              ]),
+              Text(
+                "總額" + order_data["price"],
+                style: TextStyle(fontSize: 48),
+              )
+            ],
+          ));
+    } else if (order_data["dining"] == "TakeOut") {
+                            
+
+      return Scaffold(
+          appBar: AppBar(
+            title: Text('畫單頁面'),
+          ),
+          body: Column(
+            children: [
+              Row(
+                children: [
+                  Column(
+                    children: [
+                      Text("編號：" + order_data['orderTempID'],
+                          style: new TextStyle(fontSize: 20)),
+                      Text(order_data["diningStyle"],
+                          style: new TextStyle(fontSize: 22)),
+                    ],
+                  ),
+                  Spacer(),
+                  Column(
+                    // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text("訂單時間：" + order_data['DataTime'],
+                          style: new TextStyle(fontSize: 16)),
+                      // Text("桌單號碼：" + order_data["DiningStyleID"]),
+                    ],
+                  )
+                ],
+              ),
+              Expanded(
+                  child: Container(
+                child: ListView.builder(
+                    itemCount: order_data["OrderTemp"] == null
+                        ? 0
+                        : json.decode(order_data["OrderTemp"]).length,
+                    itemBuilder: (BuildContext context, int index) {
+                      print(index);
+                      choiceCard = [];
+                      if (json
+                              .decode(order_data["OrderTemp"])[index]
+                                  ["ChoiceIDList"]
+                              .length !=
+                          0) {
+                        for (var k = 0;
+                            k <
+                                json
+                                    .decode(order_data["OrderTemp"])[index]
+                                        ["ChoiceIDList"]
+                                    .length;
+                            k++) {
+                          choiceCard.add(
+                            Text(
+                                "細項名稱：" +
+                                    (json.decode(order_data["OrderTemp"])[index]
+                                        ["ChoiceIDList"][k])["ChoiceName"],
+                                style: new TextStyle(fontSize: 16)),
+                          );
+                        }
+                      }
+                      final totalPrice = int.parse(
+                              json.decode(order_data["OrderTemp"])[index]
+                                  ["ItemPrice"]) *
+                          int.parse(json.decode(order_data["OrderTemp"])[index]
+                              ["Count"]);
+                      data.add({
+                        'title': json.decode(order_data["OrderTemp"])[index]
+                            ["FoodName"],
+                        'price': int.parse(
+                            json.decode(order_data["OrderTemp"])[index]
+                                ["ItemPrice"]),
+                        'qty': int.parse(json
+                            .decode(order_data["OrderTemp"])[index]["Count"]),
+                        'total_price': totalPrice,
+                        'ChoiceIDList':
+                            json.decode(order_data["OrderTemp"])[index]
+                                ["ChoiceIDList"],
+                        'Remark': json.decode(order_data["OrderTemp"])[index]
+                            ["Remark"]
+                      });
+
+                      return Center(
+                          child: Column(children: [
+                        Card(
+                            color: (_selectedItems.contains(index)) ||
+                                    _drawlist.contains(order_data["OrderID"] +
+                                        index.toString())
+                                // ? Colors.blue.withOpacity(0.5)
+                                ? Colors.red.withOpacity(0.3)
+                                : Colors.white,
+                            child: new InkWell(
+                                onTap: () {
+                                  List drawlist;
+                                  this
+                                      ._savedraw(order_data["OrderID"],
+                                          index.toString())
+                                      .then((value) {
+                                    drawlist = value;
+                                    setState(() {
+                                      _drawlist = drawlist;
+                                    });
+                                  });
+                                  setState(() {
+                                    if (!_selectedItems.contains(index)) {
+                                      setState(() {
+                                        _selectedItems.add(index);
+                                      });
+                                    }
+                                  });
+                                },
+                                onLongPress: () {
+                                  this._remove(
+                                      order_data["OrderID"], index.toString());
+                                  if (_selectedItems.contains(index)) {
+                                    setState(() {
+                                      _selectedItems
+                                          .removeWhere((val) => val == index);
+                                    });
+                                  }
+                                },
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: <Widget>[
+                                    Row(
+                                      children: [
                                         Column(
                                           children: [
                                             Text(
@@ -647,6 +1514,11 @@ class BPageState extends State<BPage> {
                                                           .lineThrough
                                                       : TextDecoration.none),
                                             ),
+                                          ],
+                                        ),
+                                        Text("   "),
+                                        Column(
+                                          children: [
                                             Text(
                                                 "備註：" +
                                                     json.decode(order_data[
@@ -666,253 +1538,60 @@ class BPageState extends State<BPage> {
                                                         ? TextDecoration
                                                             .lineThrough
                                                         : TextDecoration.none)),
-                                          ],
-                                        ),
-                                        Column(
-                                          children: [
-                                            // Text("單品項價錢" +
-                                            //     json.decode(order_data["OrderTemp"])[index]
-                                            //         ["FoodPrice"]),
-                                            ...choiceCard,
-                                            // Text("總額：" + order_data['price']),
+                                            Column(
+                                              children: [
+                                                // Text("單品項價錢" +
+                                                //     json.decode(order_data["OrderTemp"])[index]
+                                                //         ["FoodPrice"]),
+                                                ...choiceCard,
+                                                // Text("總額：" + order_data['price']),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                       ],
-                                    ))))
-                      ]));
-                    }),
-              )),
-              Column(children: [
-                FlatButton(
-                  color: Colors.redAccent,
-                  textColor: Colors.white,
-                  child: Text('取消訂單'),
-                  onPressed: () {
-                    cancelApply(order_data["OrderID"]);
-                    Navigator.push(
-                        context, MaterialPageRoute(builder: (_) => CloudPos()));
-                  },
-                ),
-                FlatButton(
-                  color: Theme.of(context).primaryColor,
-                  textColor: Colors.white,
-                  child: Text('結帳'),
-                  onPressed: () {
-                    orderApply(order_data["OrderID"], order_data['price'],
-                        order_data['orderTempID']);
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => Print(data)));
-                  },
-                ),
-              ]),
-              Text(
-                "總額" + order_data["price"],
-                style: TextStyle(fontSize: 48),
-              )
-            ],
-          ));
-    } else if (order_data["dining"] == "TakeOut") {
-      return Scaffold(
-          appBar: AppBar(
-            title: Text('畫單頁面'),
-          ),
-          body: Column(
-            children: [
-              Row(
-                children: [
-                  Column(
-                    children: [
-                      Text("編號：" + order_data['orderTempID']),
-                      Text(order_data["diningStyle"]),
-                    ],
-                  ),
-                  Spacer(),
-                  Column(
-                    // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Text("訂單時間：" + order_data['DataTime']),
-                      // Text("桌單號碼：" + order_data["DiningStyleID"]),
-                    ],
-                  )
-                ],
-              ),
-              Expanded(
-                  child: Container(
-                child: ListView.builder(
-                    itemCount: order_data["OrderTemp"] == null
-                        ? 0
-                        : json.decode(order_data["OrderTemp"]).length,
-                    itemBuilder: (BuildContext context, int index) {
-                      choiceCard = [];
-                      if (json
-                              .decode(order_data["OrderTemp"])[index]
-                                  ["ChoiceIDList"]
-                              .length !=
-                          0) {
-                        for (var k = 0;
-                            k <
-                                json
-                                    .decode(order_data["OrderTemp"])[index]
-                                        ["ChoiceIDList"]
-                                    .length;
-                            k++) {
-                          choiceCard.add(
-                            Text("細項名稱：" +
-                                (json.decode(order_data["OrderTemp"])[index]
-                                    ["ChoiceIDList"][k])["ChoiceName"]),
-                          );
-                        }
-                      }
-                      final totalPrice = int.parse(
-                              json.decode(order_data["OrderTemp"])[index]
-                                  ["ItemPrice"]) *
-                          int.parse(json.decode(order_data["OrderTemp"])[index]
-                              ["Count"]);
-                      print("QQ");
-                      data.add({
-                        'title': json.decode(order_data["OrderTemp"])[index]
-                            ["FoodName"],
-                        'price': int.parse(
-                            json.decode(order_data["OrderTemp"])[index]
-                                ["ItemPrice"]),
-                        'qty': int.parse(json
-                            .decode(order_data["OrderTemp"])[index]["Count"]),
-                        'total_price': totalPrice,
-                        'ChoiceIDList':
-                            json.decode(order_data["OrderTemp"])[index]
-                                ["ChoiceIDList"]
-                      });
-                      return Center(
-                          child: Column(children: [
-                        Card(
-                            color: (_selectedItems.contains(index)) ||
-                                    _drawlist.contains(order_data["OrderID"] +
-                                        index.toString())
-                                // ? Colors.blue.withOpacity(0.5)
-                                ? Colors.red.withOpacity(0.3)
-                                : Colors.white,
-                            child: new InkWell(
-                                onTap: () {
-                                  List drawlist;
-                                  this
-                                      ._savedraw(order_data["OrderID"],
-                                          index.toString())
-                                      .then((value) {
-                                    drawlist = value;
-                                    setState(() {
-                                      _drawlist = drawlist;
-                                    });
-                                  });
-                                  setState(() {
-                                    if (!_selectedItems.contains(index)) {
-                                      setState(() {
-                                        _selectedItems.add(index);
-                                      });
-                                    }
-                                  });
-                                },
-                                onLongPress: () {
-                                  this._remove(
-                                      order_data["OrderID"], index.toString());
-                                  if (_selectedItems.contains(index)) {
-                                    setState(() {
-                                      _selectedItems
-                                          .removeWhere((val) => val == index);
-                                    });
-                                  }
-                                },
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: <Widget>[
-                                    Column(
-                                      children: [
-                                        Text(
-                                            "品名：" +
-                                                json.decode(order_data[
-                                                        "OrderTemp"])[index]
-                                                    ["FoodName"],
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.redAccent,
-                                                decoration: (_selectedItems
-                                                            .contains(index)) ||
-                                                        _drawlist.contains(
-                                                            order_data[
-                                                                    "OrderID"] +
-                                                                index
-                                                                    .toString())
-                                                    ? TextDecoration.lineThrough
-                                                    : TextDecoration.none)),
-                                        Text(
-                                          "單價 " +
-                                              json.decode(
-                                                      order_data["OrderTemp"])[
-                                                  index]["ItemPrice"] +
-                                              " " +
-                                              "X" +
-                                              " 數量：" +
-                                              json.decode(
-                                                      order_data["OrderTemp"])[
-                                                  index]["Count"],
-                                          style: TextStyle(
-                                              decoration: (_selectedItems
-                                                          .contains(index)) ||
-                                                      _drawlist.contains(
-                                                          order_data[
-                                                                  "OrderID"] +
-                                                              index.toString())
-                                                  ? TextDecoration.lineThrough
-                                                  : TextDecoration.none),
-                                        ),
-                                        Text(
-                                            "備註：" +
-                                                json.decode(order_data[
-                                                        "OrderTemp"])[index]
-                                                    ["Remark"],
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                color: Colors.indigoAccent,
-                                                decoration: (_selectedItems
-                                                            .contains(index)) ||
-                                                        _drawlist.contains(
-                                                            order_data[
-                                                                    "OrderID"] +
-                                                                index
-                                                                    .toString())
-                                                    ? TextDecoration.lineThrough
-                                                    : TextDecoration.none)),
-                                        ...choiceCard
-                                      ],
-                                    ),
+                                    )
                                   ],
                                 )))
                       ]));
                     }),
               )),
-              Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                 FlatButton(
+                  minWidth: 120,
                   color: Colors.redAccent,
                   textColor: Colors.white,
-                  child: Text('取消訂單'),
+                  child: Text('取消訂單', style: new TextStyle(fontSize: 20)),
                   onPressed: () {
-                    cancelApply(order_data["OrderID"]);
-                    Navigator.push(
-                        context, MaterialPageRoute(builder: (_) => CloudPos()));
+                    Alert(
+                      context: context,
+                      type: AlertType.error,
+                      title: "確定要取消訂單嗎",
+                      desc: "取消訂單後不會出現在歷史資料",
+                      buttons: [
+                        DialogButton(
+                          height: 80,
+                          width: 120,
+                          child: Text(
+                            "確認",
+                            style: TextStyle(color: Colors.white, fontSize: 40),
+                          ),
+                          onPressed: () {
+                            cancelApply(order_data["OrderID"]).then((value) =>
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => CloudPos())));
+                          },
+                        )
+                      ],
+                    ).show();
+                    // cancelApply(order_data["OrderID"]);
+                    // Navigator.push(
+                    //     context, MaterialPageRoute(builder: (_) => CloudPos()));
                   },
                 ),
-                FlatButton(
-                  color: Theme.of(context).primaryColor,
-                  textColor: Colors.white,
-                  child: Text('結帳'),
-                  onPressed: () {
-                    orderApply(order_data["OrderID"], order_data['price'],
-                        order_data['orderTempID']);
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => Print(data)));
-                  },
-                ),
+                child
               ]),
               Text(
                 "總額" + order_data["price"],
@@ -925,11 +1604,14 @@ class BPageState extends State<BPage> {
 
   @override
   void initState() {
-    _getdraw();
+    _getdraw(); //保存畫單資料
+    // _getOrderdraw();
     if (widget.order_data != null) {
       order_data = widget.order_data;
       //把最外層的值放進來
     }
     super.initState();
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   }
 }

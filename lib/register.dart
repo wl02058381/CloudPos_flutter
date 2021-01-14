@@ -13,6 +13,7 @@ class RegisterPage extends StatelessWidget {
   String data;
   String _status;
   Future<String> registerBTN() async {
+    try{
     var wifiIP = await WifiInfo().getWifiIP();
     var url = "https://cloudpos.54ucl.com:8011/AddAccount";
     var body = json.encode({
@@ -33,6 +34,9 @@ class RegisterPage extends StatelessWidget {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('StoreID', json.decode(resbody)["StoreID"]);
     return resbody;
+    }catch(e){
+      return 'neterror';
+    }
   }
 
   @override
@@ -50,7 +54,7 @@ class RegisterPage extends StatelessWidget {
                 controller: accountController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.person),
-                  labelText: "Name *",
+                  labelText: "帳號 *",
                   hintText: "請輸入帳號",
                 ),
               ),
@@ -62,7 +66,7 @@ class RegisterPage extends StatelessWidget {
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.lock),
                   suffixIcon: Icon(Icons.remove_red_eye),
-                  labelText: "Password *",
+                  labelText: "密碼 *",
                   hintText: "請輸入密碼",
                 ),
               ),
@@ -74,7 +78,7 @@ class RegisterPage extends StatelessWidget {
               width: MediaQuery.of(context).size.width - 48.0,
               height: 48.0,
               child: RaisedButton(
-                child: Text("註冊"),
+                child: Text("註冊",style: TextStyle(fontSize: 20)),
                 onPressed: () {
                   String status;
                   // String accountstatus;
@@ -82,11 +86,47 @@ class RegisterPage extends StatelessWidget {
                     status = json.decode(value)["Status"];
                     // accountstatus = json.decode(value)["msg"];
                     print(status);
+                    if (value == 'neterror'){
+                            Alert(
+                              context: context,
+                              type: AlertType.error,
+                              title: "註冊失敗",
+                              desc: "請檢查網路連線狀態",
+                              buttons: [
+                                DialogButton(
+                                  child: Text(
+                                    "確認",
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 20),
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
+                                  width: 120,
+                                )
+                              ],
+                            ).show();
+                          }
                     if (status == "Success") {
-                      Navigator.push(
+                      Alert(
+                        context: context,
+                        type: AlertType.success,
+                        title: "註冊成功",
+                        desc: "註冊成功",
+                        buttons: [
+                          DialogButton(
+                            child: Text(
+                              "確認",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 20),
+                            ),
+                            onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => LoginPage()));
+                              builder: (context) => LoginPage())),
+                            width: 120,
+                          )
+                        ],
+                      ).show();
+                      
                       // print(json.decode(value)["StoreID"]);
                     } else if (status == "AccountRepeat") {
                       Alert(
