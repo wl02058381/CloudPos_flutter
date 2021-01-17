@@ -3,8 +3,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io';
-import 'package:webview_flutter/webview_flutter.dart';
+// import 'dart:io';
+// import 'package:webview_flutter/webview_flutter.dart';
 // import 'package:cloudpos_online/print.dart';
 import 'package:cloudpos_online/chooseBT.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,14 +17,24 @@ import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:bluetooth_thermal_printer/bluetooth_thermal_printer.dart';
 import 'dart:typed_data';
-import 'package:image/image.dart';
+// import 'package:image/image.dart';
 import 'package:intl/intl.dart';
 import 'package:rflutter_alert/rflutter_alert.dart';
+import 'package:charset_converter/charset_converter.dart';
 
 //----
 void main() {
   // runApp(MaterialApp(home: HomePage(), debugShowCheckedModeBanner: false));
-  runApp(MaterialApp(home: LoginPage(), debugShowCheckedModeBanner: false));
+  runApp(MaterialApp(
+      home: LoginPage(),
+      routes: <String, WidgetBuilder>{
+        '/HomePage': (BuildContext context) => new HomePage(),
+        '/ChooseBT': (BuildContext context) => new ChooseBT(),
+        '/LoginPage': (BuildContext context) => new LoginPage(),
+        '/BPage': (BuildContext context) => new BPage(),
+        '/CloudPos': (BuildContext context) => new CloudPos(),
+      },
+      debugShowCheckedModeBanner: false));
 }
 
 class FoodInfo {
@@ -94,10 +104,11 @@ class HomePageState extends State<HomePage> {
                     child: RaisedButton(
                       child: Text("出單系統", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => CloudPos()));
+                        Navigator.of(context).pushNamed('/CloudPos');
+                        // Navigator.push(
+                        //     context,
+                        //     MaterialPageRoute(
+                        //         builder: (context) => CloudPos()));
                       },
                     )),
                 ButtonTheme(
@@ -149,10 +160,12 @@ class HomePageState extends State<HomePage> {
                     child: RaisedButton(
                       child: Text("設備選擇", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => ChooseBT()));
+                        Navigator.of(context).pushNamed('/ChooseBT');
+
+                        // Navigator.push(
+                        //     context,
+                        //     MaterialPageRoute(
+                        //         builder: (context) => ChooseBT()));
                       },
                     )),
                 ButtonTheme(
@@ -163,10 +176,12 @@ class HomePageState extends State<HomePage> {
                       child: Text("登出", style: TextStyle(fontSize: 22.0)),
                       onPressed: () {
                         loginclean();
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => LoginPage()));
+                        Navigator.of(context).pushNamed('/LoginPage');
+
+                        // Navigator.push(
+                        //     context,
+                        //     MaterialPageRoute(
+                        //         builder: (context) => LoginPage()));
                       },
                     ))
               ],
@@ -213,19 +228,23 @@ class CloudPosState extends State<CloudPos> {
   int seconds;
   List<String> _orderdrawlist = List<String>();
   Future<String> getSWData(paid, del) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String storeID = prefs.getString('StoreID');
-    var url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
-    var body = json.encode({"StoreID": storeID, "Paid": paid, "Del": del});
-    Map<String, String> headers = {
-      'Content-type': 'application/json',
-      'Accept': 'application/json',
-    };
-    final response = await http.post(url, body: body, headers: headers);
-    setState(() {
-      clouddata = response.body;
-    });
-    return "Success!";
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String storeID = prefs.getString('StoreID');
+      var url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
+      var body = json.encode({"StoreID": storeID, "Paid": paid, "Del": del});
+      Map<String, String> headers = {
+        'Content-type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final response = await http.post(url, body: body, headers: headers);
+      setState(() {
+        clouddata = response.body;
+      });
+      return "Success!";
+    } catch (e) {
+      return "error";
+    }
   }
 
   Future<String> searchSWData(searchText) async {
@@ -255,15 +274,10 @@ class CloudPosState extends State<CloudPos> {
 
   Future<List> _getOrderdraw() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final myStringList = prefs.getStringList('saveorderdrawList');
-    print("QQ");
-    print(myStringList);
-    if (myStringList != null) {
-      setState(() {
-        _orderdrawlist = myStringList;
-      });
-    }
-    return myStringList;
+    final order_drawlist = prefs.getStringList('order_drawlist') ?? [];
+    // print('order_drawlist $order_drawlist ');
+    // prefs.remove('order_drawlist');
+    return order_drawlist;
   }
 
   String title = "(未結帳訂單)"; //預設title
@@ -276,225 +290,728 @@ class CloudPosState extends State<CloudPos> {
     var dining = new List();
     var cardcolor = new List();
     var btncolor = Colors.orange;
-    try {
-      for (var i = 0; i < json.decode(clouddata)["Data"].length; i++) {
-        dining.add(json.decode(clouddata)["Data"][i]["DiningStyle"]);
-        if (json.decode(clouddata)["Data"][i]["DiningStyle"] == "TakeOut") {
-          diningStyle
-              .add("外帶-電話：" + json.decode(clouddata)["Data"][i]["Phone"]);
-          cardcolor.add(Colors.black12);
-        } else {
-          diningStyle
-              .add("內用-桌號：" + json.decode(clouddata)["Data"][i]["Table"]);
-          cardcolor.add(Colors.black26);
+    var orderAndstatus = new Map();
+    return FutureBuilder<List>(
+      future: _getOrderdraw().then((order_drawlist) {
+        print(order_drawlist);
+        //把字串分開用Map去存
+        for (var i = 0; i < order_drawlist.length; i++) {
+          // print(i);
+          // print(order_drawlist[i].toString().split('#'));
+          orderAndstatus[
+                  order_drawlist[i].toString().split('#')[0].toString()] =
+              order_drawlist[i].toString().split('#')[1].toString();
         }
-      }
-      // print(diningStyle);
-      return Scaffold(
-        appBar: AppBar(
-            leading: IconButton(
-              icon: Icon(
-                Icons.wrap_text_sharp,
+        // print("orderAndstatus");
+        // print(orderAndstatus);
+      }),
+      builder: (BuildContext context, AsyncSnapshot snapshot) {
+        // 请求已结束
+        if (snapshot.connectionState == ConnectionState.done) {
+          if (snapshot.hasError) {
+            // 请求失败，显示错误
+            // return Text("Error: ${snapshot.error}");
+            Alert(
+              context: context,
+              type: AlertType.error,
+              title: "發生異常狀況",
+              desc: "請求資料失敗",
+              buttons: [
+                DialogButton(
+                  child: Text(
+                    "確認",
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  width: 120,
+                )
+              ],
+            ).show();
+          } else {
+            // 请求成功，显示数据
+            // return Text("Contents: ${snapshot.data}");
+            for (var i = 0; i < json.decode(clouddata)["Data"].length; i++) {
+              for (var i = 0; i < json.decode(clouddata)["Data"].length; i++) {
+                // print(orderAndstatus
+                //     .containsKey(json.decode(clouddata)["Data"][i]["OrderID"]));
+                dining.add(json.decode(clouddata)["Data"][i]["DiningStyle"]);
+                if (json.decode(clouddata)["Data"][i]["DiningStyle"] ==
+                    "TakeOut") {
+                  //外帶
+                  diningStyle.add(
+                      "外帶-電話：" + json.decode(clouddata)["Data"][i]["Phone"]);
+                  if (orderAndstatus.containsKey(
+                              json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                          true &&
+                      orderAndstatus[json.decode(clouddata)["Data"][i]
+                              ["OrderID"]] ==
+                          '1') {
+                    // 畫完的
+                    cardcolor.add(Colors.cyan);
+                  } else if (orderAndstatus.containsKey(
+                              json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                          true &&
+                      orderAndstatus[json.decode(clouddata)["Data"][i]
+                              ["OrderID"]] ==
+                          '0') {
+                    // 沒畫完
+                    cardcolor.add(Colors.blueAccent);
+                  } else {
+                    cardcolor.add(Colors.black12);
+                  }
+                } else {
+                  //內用
+                  diningStyle.add(
+                      "內用-桌號：" + json.decode(clouddata)["Data"][i]["Table"]);
+                  if (orderAndstatus.containsKey(
+                              json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                          true &&
+                      orderAndstatus[json.decode(clouddata)["Data"][i]
+                              ["OrderID"]] ==
+                          '1') {
+                    // 畫完的
+                    cardcolor.add(Colors.cyan);
+                  } else if (orderAndstatus.containsKey(
+                              json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                          true &&
+                      orderAndstatus[json.decode(clouddata)["Data"][i]
+                              ["OrderID"]] ==
+                          '0') {
+                    // 沒畫完
+                    cardcolor.add(Colors.blueAccent);
+                  } else {
+                    cardcolor.add(Colors.black26);
+                  }
+                }
+              }
+            }
+            return Scaffold(
+              appBar: AppBar(
+                  leading: IconButton(
+                    icon: Icon(
+                      Icons.wrap_text_sharp,
+                      color: Colors.white,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pushNamed('/HomePage');
+                      // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
+                      // Navigator.push(
+                      //     context, MaterialPageRoute(builder: (_) => HomePage()));
+                    },
+                  ),
+                  title: Text("CloudPos出單系統$title"),
+                  backgroundColor: Colors.black45),
+              bottomNavigationBar: BottomAppBar(
+                child: Container(
+                    height: 100.0,
+                    child: Row(
+                      children: <Widget>[
+                        Row(
+                          children: [
+                            Text("   "),
+                            FlatButton(
+                              height: 80.0,
+                              color: btncolor,
+                              textColor: Colors.white,
+                              child: Text('未結帳訂單',
+                                  style: TextStyle(fontSize: 20.0)),
+                              onPressed: () {
+                                this.getSWData('0', '0').then((value) {
+                                  if (value == "error") {
+                                    Alert(
+                                      context: context,
+                                      type: AlertType.error,
+                                      title: "網路未連接",
+                                      desc: "請檢查網路連線狀態",
+                                      buttons: [
+                                        DialogButton(
+                                          child: Text(
+                                            "確認",
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20),
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          width: 120,
+                                        )
+                                      ],
+                                    ).show();
+                                  }
+                                  setState(() {
+                                    title = '(未結帳訂單)';
+                                    btncolor = Colors.red;
+                                  });
+                                });
+                              },
+                            ),
+                            Text("   "),
+                            // Spacer(),
+                            FlatButton(
+                              height: 80.0,
+                              color: Colors.pink,
+                              textColor: Colors.white,
+                              child: Text('已結帳訂單',
+                                  style: TextStyle(fontSize: 20.0)),
+                              onPressed: () {
+                                this.getSWData('1', '0').then((value) {
+                                  if (value == "error") {
+                                    Alert(
+                                      context: context,
+                                      type: AlertType.error,
+                                      title: "網路未連接",
+                                      desc: "請檢查網路連線狀態",
+                                      buttons: [
+                                        DialogButton(
+                                          child: Text(
+                                            "確認",
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20),
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          width: 120,
+                                        )
+                                      ],
+                                    ).show();
+                                  }
+                                  setState(() {
+                                    title = '(已結帳訂單)';
+                                  });
+                                });
+                              },
+                            ),
+                            Text("   "),
+                            // Spacer(),
+                            FlatButton(
+                              height: 80.0,
+                              color: Theme.of(context).primaryColor,
+                              textColor: Colors.white,
+                              child: Text('歷史紀錄',
+                                  style: TextStyle(fontSize: 20.0)),
+                              onPressed: () {
+                                this.getSWData('-1', '0').then((value) {
+                                  if (value == "error") if (value == "error") {
+                                    Alert(
+                                      context: context,
+                                      type: AlertType.error,
+                                      title: "網路未連接",
+                                      desc: "請檢查網路連線狀態",
+                                      buttons: [
+                                        DialogButton(
+                                          child: Text(
+                                            "確認",
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20),
+                                          ),
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          width: 120,
+                                        )
+                                      ],
+                                    ).show();
+                                  }
+                                  setState(() {
+                                    title = '(歷史紀錄)';
+                                  });
+                                });
+                              },
+                            ),
+                            Text("   "),
+                            FlatButton(
+                              height: 80.0,
+                              color: Theme.of(context).textSelectionHandleColor,
+                              textColor: Colors.white,
+                              child: Text('編號搜尋',
+                                  style: TextStyle(fontSize: 20.0)),
+                              onPressed: () {
+                                Alert(
+                                    context: context,
+                                    title: "編號搜尋",
+                                    content: Column(
+                                      children: <Widget>[
+                                        TextField(
+                                          controller: searchController,
+                                          decoration: InputDecoration(
+                                            icon: Icon(Icons.search_rounded),
+                                            labelText: '輸入編號',
+                                          ),
+                                        )
+                                      ],
+                                    ),
+                                    buttons: [
+                                      DialogButton(
+                                        onPressed: () {
+                                          searchSWData(searchController.text);
+                                          Navigator.pop(context);
+                                        },
+                                        child: Text(
+                                          "搜尋",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 20),
+                                        ),
+                                      )
+                                    ]).show();
+                              },
+                            )
+                          ],
+                        )
+                      ],
+                    )),
                 color: Colors.white,
               ),
-              onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => HomePage()));
-              },
-            ),
-            title: Text("CloudPos出單系統$title"),
-            backgroundColor: Colors.black45),
-        bottomNavigationBar: BottomAppBar(
-          child: Container(
-              height: 100.0,
-              child: Row(
-                children: <Widget>[
-                  Row(
-                    children: [
-                      Text("   "),
-                      FlatButton(
-                        height: 80.0,
-                        color: btncolor,
-                        textColor: Colors.white,
-                        child: Text('未結帳訂單', style: TextStyle(fontSize: 20.0)),
-                        onPressed: () {
-                          this.getSWData('0', '0').then((value) {
-                            setState(() {
-                              title = '(未結帳訂單)';
-                              btncolor = Colors.red;
-                            });
-                          });
-                        },
+              body: ListView.builder(
+                itemCount: clouddata == null
+                    ? 0
+                    : json.decode(clouddata)["Data"].length,
+                itemBuilder: (BuildContext context, int index) {
+                  return Container(
+                    child: Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          Card(
+                            color:
+                                _orderdrawlist.contains(order_data["OrderID"])
+                                    ? Colors.red.withOpacity(0.3)
+                                    : Colors.white,
+                            child: new InkWell(
+                                onTap: () {
+                                  print("Card按鈕");
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              BPage(order_data: {
+                                                "orderTempID": json
+                                                    .decode(clouddata)["Data"]
+                                                        [index]["MealID"]
+                                                    .toString(),
+                                                "diningStyle":
+                                                    diningStyle[index],
+                                                "price": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["TotalPrice"],
+                                                "OrderTemp": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["OrderTemp"],
+                                                "DataTime": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["DataTime"],
+                                                "MealTime": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["MealTime"],
+                                                "DiningStyleID": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["DiningStyleID"],
+                                                "dining": dining[index],
+                                                "OrderID": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["OrderID"],
+                                                "Phone": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["Phone"],
+                                                "Table": json.decode(
+                                                        clouddata)["Data"]
+                                                    [index]["Table"],
+                                                "title": title
+                                              })));
+                                },
+                                child: Container(
+                                    color: cardcolor[index], //外送內用的卡片顏色
+                                    padding: EdgeInsets.all(17.0),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: <Widget>[
+                                        Text(
+                                            "編號:" +
+                                                json
+                                                    .decode(clouddata)["Data"]
+                                                        [index]["MealID"]
+                                                    .toString(),
+                                            style: new TextStyle(fontSize: 24)),
+                                        Text(
+                                            "價錢:" +
+                                                json.decode(clouddata)["Data"]
+                                                    [index]["TotalPrice"],
+                                            style: TextStyle(
+                                                fontSize: 22.0,
+                                                color: Colors.red)),
+                                        Column(
+                                          children: [
+                                            Text(diningStyle[index],
+                                                style:
+                                                    TextStyle(fontSize: 17.2)),
+                                            Text(
+                                                "時間：" +
+                                                    json.decode(
+                                                            clouddata)["Data"]
+                                                        [index]["DataTime"],
+                                                style: TextStyle(
+                                                    fontSize: 14.0,
+                                                    color: Colors.black87)),
+                                          ],
+                                        )
+                                      ],
+                                    ))),
+                          ),
+                        ],
                       ),
-                      Text("   "),
-                      // Spacer(),
-                      FlatButton(
-                        height: 80.0,
-                        color: Colors.pink,
-                        textColor: Colors.white,
-                        child: Text('已結帳訂單', style: TextStyle(fontSize: 20.0)),
-                        onPressed: () {
-                          this.getSWData('1', '0').then((value) {
-                            setState(() {
-                              title = '(已結帳訂單)';
-                            });
-                          });
-                        },
-                      ),
-                      Text("   "),
-                      // Spacer(),
-                      FlatButton(
-                        height: 80.0,
-                        color: Theme.of(context).primaryColor,
-                        textColor: Colors.white,
-                        child: Text('歷史紀錄', style: TextStyle(fontSize: 20.0)),
-                        onPressed: () {
-                          this.getSWData('-1', '0').then((value) {
-                            setState(() {
-                              title = '(歷史紀錄)';
-                            });
-                          });
-                        },
-                      ),
-                      Text("   "),
-                      FlatButton(
-                        height: 80.0,
-                        color: Theme.of(context).textSelectionHandleColor,
-                        textColor: Colors.white,
-                        child: Text('編號搜尋', style: TextStyle(fontSize: 20.0)),
-                        onPressed: () {
-                          Alert(
-                              context: context,
-                              title: "編號搜尋",
-                              content: Column(
-                                children: <Widget>[
-                                  TextField(
-                                    controller: searchController,
-                                    decoration: InputDecoration(
-                                      icon: Icon(Icons.search_rounded),
-                                      labelText: '輸入編號',
-                                    ),
-                                  )
-                                ],
-                              ),
-                              buttons: [
-                                DialogButton(
-                                  onPressed: () {
-                                    searchSWData(searchController.text);
-                                    Navigator.pop(context);
-                                  },
-                                  child: Text(
-                                    "搜尋",
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 20),
-                                  ),
-                                )
-                              ]).show();
-                        },
-                      )
-                    ],
-                  )
-                ],
-              )),
-          color: Colors.white,
-        ),
-        body: ListView.builder(
-          itemCount:
-              clouddata == null ? 0 : json.decode(clouddata)["Data"].length,
-          itemBuilder: (BuildContext context, int index) {
-            return Container(
-              child: Center(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    Card(
-                      color: _orderdrawlist.contains(order_data["OrderID"])
-                          ? Colors.red.withOpacity(0.3)
-                          : Colors.white,
-                      child: new InkWell(
-                          onTap: () {
-                            print("Card按鈕");
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => BPage(order_data: {
-                                          "orderTempID": json
-                                              .decode(clouddata)["Data"][index]
-                                                  ["MealID"]
-                                              .toString(),
-                                          "diningStyle": diningStyle[index],
-                                          "price":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["TotalPrice"],
-                                          "OrderTemp":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["OrderTemp"],
-                                          "DataTime":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["DataTime"],
-                                          "MealTime":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["MealTime"],
-                                          "DiningStyleID":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["DiningStyleID"],
-                                          "dining": dining[index],
-                                          "OrderID":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["OrderID"],
-                                          "Phone":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["Phone"],
-                                          "Table":
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["Table"],
-                                          "title": title
-                                        })));
-                          },
-                          child: Container(
-                              color: cardcolor[index],
-                              padding: EdgeInsets.all(15.0),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: <Widget>[
-                                  Text(
-                                      "編號:" +
-                                          json
-                                              .decode(clouddata)["Data"][index]
-                                                  ["MealID"]
-                                              .toString(),
-                                      style: new TextStyle(fontSize: 24)),
-                                  Text(
-                                      "價錢:" +
-                                          json.decode(clouddata)["Data"][index]
-                                              ["TotalPrice"],
-                                      style: TextStyle(
-                                          fontSize: 22.0, color: Colors.red)),
-                                  Column(
-                                    children: [
-                                      Text(diningStyle[index],
-                                          style: TextStyle(fontSize: 17.2)),
-                                      Text(
-                                          "時間：" +
-                                              json.decode(clouddata)["Data"]
-                                                  [index]["DataTime"],
-                                          style: TextStyle(
-                                              fontSize: 14.0,
-                                              color: Colors.black87)),
-                                    ],
-                                  )
-                                ],
-                              ))),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             );
-          },
-        ),
-      );
+          }
+        } else {
+          // 请求未结束，显示loading
+          return Scaffold(
+              backgroundColor: Colors.blue[900],
+              body: Center(
+                  child: SpinKitFadingCircle(
+                size: 100.0,
+                itemBuilder: (BuildContext context, int index) {
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: index.isEven ? Colors.red : Colors.green,
+                    ),
+                  );
+                },
+              )));
+        }
+      },
+    );
+
+    try {
+      //訂單顏色狀態
+      // _getOrderdraw().then((order_drawlist) {
+      //   //把字串分開用Map去存
+      //   for (var i = 0; i < order_drawlist.length; i++) {
+      //     // print(i);
+      //     print(order_drawlist[i].toString().split('#'));
+      //     orderAndstatus[
+      //             order_drawlist[i].toString().split('#')[0].toString()] =
+      //         order_drawlist[i].toString().split('#')[1].toString();
+      //   }
+      //   print("orderAndstatus");
+      //   print(orderAndstatus);
+      // });
+      print(orderAndstatus);
+      for (var i = 0; i < json.decode(clouddata)["Data"].length; i++) {
+        print(orderAndstatus
+            .containsKey(json.decode(clouddata)["Data"][i]["OrderID"]));
+        dining.add(json.decode(clouddata)["Data"][i]["DiningStyle"]);
+        if (json.decode(clouddata)["Data"][i]["DiningStyle"] == "TakeOut") {
+          //外帶
+          diningStyle
+              .add("外帶-電話：" + json.decode(clouddata)["Data"][i]["Phone"]);
+          if (orderAndstatus.containsKey(
+                      json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                  true &&
+              orderAndstatus.containsValue('1') == true) {
+            // 畫完的
+            cardcolor.add(Colors.cyan);
+          } else if (orderAndstatus.containsKey(
+                      json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                  true &&
+              orderAndstatus.containsValue('0') == true) {
+            // 沒畫完
+            cardcolor.add(Colors.blueAccent);
+          } else {
+            cardcolor.add(Colors.black12);
+          }
+        } else {
+          //內用
+          diningStyle
+              .add("內用-桌號：" + json.decode(clouddata)["Data"][i]["Table"]);
+          if (orderAndstatus.containsKey(
+                      json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                  true &&
+              orderAndstatus.containsValue('1') == true) {
+            // 畫完的
+            cardcolor.add(Colors.cyan);
+          } else if (orderAndstatus.containsKey(
+                      json.decode(clouddata)["Data"][i]["OrderID"]) ==
+                  true &&
+              orderAndstatus.containsValue('0') == true) {
+            // 沒畫完
+            cardcolor.add(Colors.blueAccent);
+          } else {
+            cardcolor.add(Colors.black26);
+          }
+        }
+      }
+
+      // return Scaffold(
+      //   appBar: AppBar(
+      //       leading: IconButton(
+      //         icon: Icon(
+      //           Icons.wrap_text_sharp,
+      //           color: Colors.white,
+      //         ),
+      //         onPressed: () {
+      //           Navigator.of(context).pushNamed('/HomePage');
+      //           // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
+      //           // Navigator.push(
+      //           //     context, MaterialPageRoute(builder: (_) => HomePage()));
+      //         },
+      //       ),
+      //       title: Text("CloudPos出單系統$title"),
+      //       backgroundColor: Colors.black45),
+      //   bottomNavigationBar: BottomAppBar(
+      //     child: Container(
+      //         height: 100.0,
+      //         child: Row(
+      //           children: <Widget>[
+      //             Row(
+      //               children: [
+      //                 Text("   "),
+      //                 FlatButton(
+      //                   height: 80.0,
+      //                   color: btncolor,
+      //                   textColor: Colors.white,
+      //                   child: Text('未結帳訂單', style: TextStyle(fontSize: 20.0)),
+      //                   onPressed: () {
+      //                     this.getSWData('0', '0').then((value) {
+      //                       if (value == "error") {
+      //                         Alert(
+      //                           context: context,
+      //                           type: AlertType.error,
+      //                           title: "網路未連接",
+      //                           desc: "請檢查網路連線狀態",
+      //                           buttons: [
+      //                             DialogButton(
+      //                               child: Text(
+      //                                 "確認",
+      //                                 style: TextStyle(
+      //                                     color: Colors.white, fontSize: 20),
+      //                               ),
+      //                               onPressed: () => Navigator.pop(context),
+      //                               width: 120,
+      //                             )
+      //                           ],
+      //                         ).show();
+      //                       }
+      //                       setState(() {
+      //                         title = '(未結帳訂單)';
+      //                         btncolor = Colors.red;
+      //                       });
+      //                     });
+      //                   },
+      //                 ),
+      //                 Text("   "),
+      //                 // Spacer(),
+      //                 FlatButton(
+      //                   height: 80.0,
+      //                   color: Colors.pink,
+      //                   textColor: Colors.white,
+      //                   child: Text('已結帳訂單', style: TextStyle(fontSize: 20.0)),
+      //                   onPressed: () {
+      //                     this.getSWData('1', '0').then((value) {
+      //                       if (value == "error") {
+      //                         Alert(
+      //                           context: context,
+      //                           type: AlertType.error,
+      //                           title: "網路未連接",
+      //                           desc: "請檢查網路連線狀態",
+      //                           buttons: [
+      //                             DialogButton(
+      //                               child: Text(
+      //                                 "確認",
+      //                                 style: TextStyle(
+      //                                     color: Colors.white, fontSize: 20),
+      //                               ),
+      //                               onPressed: () => Navigator.pop(context),
+      //                               width: 120,
+      //                             )
+      //                           ],
+      //                         ).show();
+      //                       }
+      //                       setState(() {
+      //                         title = '(已結帳訂單)';
+      //                       });
+      //                     });
+      //                   },
+      //                 ),
+      //                 Text("   "),
+      //                 // Spacer(),
+      //                 FlatButton(
+      //                   height: 80.0,
+      //                   color: Theme.of(context).primaryColor,
+      //                   textColor: Colors.white,
+      //                   child: Text('歷史紀錄', style: TextStyle(fontSize: 20.0)),
+      //                   onPressed: () {
+      //                     this.getSWData('-1', '0').then((value) {
+      //                       if (value == "error") if (value == "error") {
+      //                         Alert(
+      //                           context: context,
+      //                           type: AlertType.error,
+      //                           title: "網路未連接",
+      //                           desc: "請檢查網路連線狀態",
+      //                           buttons: [
+      //                             DialogButton(
+      //                               child: Text(
+      //                                 "確認",
+      //                                 style: TextStyle(
+      //                                     color: Colors.white, fontSize: 20),
+      //                               ),
+      //                               onPressed: () => Navigator.pop(context),
+      //                               width: 120,
+      //                             )
+      //                           ],
+      //                         ).show();
+      //                       }
+      //                       setState(() {
+      //                         title = '(歷史紀錄)';
+      //                       });
+      //                     });
+      //                   },
+      //                 ),
+      //                 Text("   "),
+      //                 FlatButton(
+      //                   height: 80.0,
+      //                   color: Theme.of(context).textSelectionHandleColor,
+      //                   textColor: Colors.white,
+      //                   child: Text('編號搜尋', style: TextStyle(fontSize: 20.0)),
+      //                   onPressed: () {
+      //                     Alert(
+      //                         context: context,
+      //                         title: "編號搜尋",
+      //                         content: Column(
+      //                           children: <Widget>[
+      //                             TextField(
+      //                               controller: searchController,
+      //                               decoration: InputDecoration(
+      //                                 icon: Icon(Icons.search_rounded),
+      //                                 labelText: '輸入編號',
+      //                               ),
+      //                             )
+      //                           ],
+      //                         ),
+      //                         buttons: [
+      //                           DialogButton(
+      //                             onPressed: () {
+      //                               searchSWData(searchController.text);
+      //                               Navigator.pop(context);
+      //                             },
+      //                             child: Text(
+      //                               "搜尋",
+      //                               style: TextStyle(
+      //                                   color: Colors.white, fontSize: 20),
+      //                             ),
+      //                           )
+      //                         ]).show();
+      //                   },
+      //                 )
+      //               ],
+      //             )
+      //           ],
+      //         )),
+      //     color: Colors.white,
+      //   ),
+      //   body: ListView.builder(
+      //     itemCount:
+      //         clouddata == null ? 0 : json.decode(clouddata)["Data"].length,
+      //     itemBuilder: (BuildContext context, int index) {
+      //       return Container(
+      //         child: Center(
+      //           child: Column(
+      //             crossAxisAlignment: CrossAxisAlignment.stretch,
+      //             children: <Widget>[
+      //               Card(
+      //                 color: _orderdrawlist.contains(order_data["OrderID"])
+      //                     ? Colors.red.withOpacity(0.3)
+      //                     : Colors.white,
+      //                 child: new InkWell(
+      //                     onTap: () {
+      //                       print("Card按鈕");
+      //                       Navigator.push(
+      //                           context,
+      //                           MaterialPageRoute(
+      //                               builder: (context) => BPage(order_data: {
+      //                                     "orderTempID": json
+      //                                         .decode(clouddata)["Data"][index]
+      //                                             ["MealID"]
+      //                                         .toString(),
+      //                                     "diningStyle": diningStyle[index],
+      //                                     "price":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["TotalPrice"],
+      //                                     "OrderTemp":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["OrderTemp"],
+      //                                     "DataTime":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["DataTime"],
+      //                                     "MealTime":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["MealTime"],
+      //                                     "DiningStyleID":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["DiningStyleID"],
+      //                                     "dining": dining[index],
+      //                                     "OrderID":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["OrderID"],
+      //                                     "Phone":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["Phone"],
+      //                                     "Table":
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["Table"],
+      //                                     "title": title
+      //                                   })));
+      //                     },
+      //                     child: Container(
+      //                         color: cardcolor[index], //外送內用的卡片顏色
+      //                         padding: EdgeInsets.all(17.0),
+      //                         child: Row(
+      //                           mainAxisAlignment:
+      //                               MainAxisAlignment.spaceAround,
+      //                           crossAxisAlignment: CrossAxisAlignment.center,
+      //                           children: <Widget>[
+      //                             Text(
+      //                                 "編號:" +
+      //                                     json
+      //                                         .decode(clouddata)["Data"][index]
+      //                                             ["MealID"]
+      //                                         .toString(),
+      //                                 style: new TextStyle(fontSize: 24)),
+      //                             Text(
+      //                                 "價錢:" +
+      //                                     json.decode(clouddata)["Data"][index]
+      //                                         ["TotalPrice"],
+      //                                 style: TextStyle(
+      //                                     fontSize: 22.0, color: Colors.red)),
+      //                             Column(
+      //                               children: [
+      //                                 Text(diningStyle[index],
+      //                                     style: TextStyle(fontSize: 17.2)),
+      //                                 Text(
+      //                                     "時間：" +
+      //                                         json.decode(clouddata)["Data"]
+      //                                             [index]["DataTime"],
+      //                                     style: TextStyle(
+      //                                         fontSize: 14.0,
+      //                                         color: Colors.black87)),
+      //                               ],
+      //                             )
+      //                           ],
+      //                         ))),
+      //               ),
+      //             ],
+      //           ),
+      //         ),
+      //       );
+      //     },
+      //   ),
+      // );
     } catch (e) {
       return Scaffold(
           backgroundColor: Colors.blue[900],
@@ -515,7 +1032,32 @@ class CloudPosState extends State<CloudPos> {
   @override
   void initState() {
     // print("安安");
-    this.getSWData('0', '0');
+    this.getSWData('0', '0').then((value) {
+      if (value == "error") {
+        Alert(
+          context: context,
+          type: AlertType.error,
+          title: "網路未連接",
+          desc: "請檢查網路連線狀態",
+          buttons: [
+            DialogButton(
+              child: Text(
+                "確認",
+                style: TextStyle(color: Colors.white, fontSize: 20),
+              ),
+              onPressed: () {
+                // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
+                Navigator.of(context).pushNamed('/HomePage');
+
+                // Navigator.push(context,
+                //     MaterialPageRoute(builder: (context) => HomePage()));
+              },
+              width: 120,
+            )
+          ],
+        ).show();
+      }
+    });
     startTimer();
     super.initState();
     SystemChrome.setPreferredOrientations(
@@ -627,6 +1169,48 @@ class BPageState extends State<BPage> {
     return myStringList;
   }
 
+  Future<List> _getOrderdraw() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // String savedraw = (prefs.getString('savedraw'));
+    final order_drawlist = prefs.getStringList('order_drawlist') ?? [];
+    print('order_drawlist $order_drawlist ');
+
+    // await prefs.setString('savedraw', orderid + index);
+    // await prefs.setStringList('order_drawlist', order_drawlist);
+    return order_drawlist;
+  }
+
+  Future<List> _saveOrderdraw(orderID, order_drawlist) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // String savedraw = (prefs.getString('savedraw'));
+    final myStringList = prefs.getStringList('order_drawlist') ?? [];
+    if (myStringList.contains(orderID + '#0')) {
+      myStringList.remove(orderID + '#0');
+    } else if (myStringList.contains(orderID + '#1')) {
+      myStringList.remove(orderID + '#1');
+    }
+    myStringList.add(order_drawlist);
+    print('order_drawlist $myStringList ');
+    // await prefs.setString('savedraw', orderid + index);
+    await prefs.setStringList('order_drawlist', myStringList);
+    // return myStringList;
+  }
+
+  Future<List> _removeOrderdraw(orderID) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // String savedraw = (prefs.getString('savedraw'));
+    final myStringList = prefs.getStringList('order_drawlist') ?? [];
+    if (myStringList.contains(orderID.toString() + '#0')) {
+      print("安安安安安安#0");
+      myStringList.remove(orderID + '#0');
+      await prefs.setStringList('order_drawlist', myStringList);
+    } else if (myStringList.contains(orderID.toString() + '#1')) {
+      myStringList.remove(orderID + '#1');
+      await prefs.setStringList('order_drawlist', myStringList);
+      print("安安安安安安#1");
+    }
+  }
+
   Future<String> getstorename() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeName = prefs.getString('StoreName');
@@ -641,7 +1225,7 @@ class BPageState extends State<BPage> {
   }
 
   Future<Ticket> getGraphicsTicket(ticketdata) async {
-    int total = 0;
+    // int total = 0;
     final ticket = Ticket(PaperSize.mm80);
     // Image assets
     // final ByteData data = await rootBundle.load('assets/store.png');
@@ -710,17 +1294,68 @@ class BPageState extends State<BPage> {
 
     // ticket.text('用餐方式${dintext}', containsChinese: true);
     ticket.text('--------------------------------');
+    List<String> charsets = await CharsetConverter.availableCharsets();
+    print(charsets);
     for (var i = 1; i < ticketdata.length; i++) {
       // print("INININININNIN");
-      total += ticketdata[i]['total_price'];
+      // total += ticketdata[i]['total_price'];
       ticket.text(i.toString());
-      ticket.text(ticketdata[i]['title'],
-          containsChinese: true, styles: PosStyles(align: PosAlign.center));
-      // styles: PosStyles(
-      //     codeTable: PosCodeTable.westEur,
-      //     height: PosTextSize.size1,
-      //     width: PosTextSize.size1));
-      // ticket.text('-------');
+
+      /// Portuguese
+      Uint8List encTxt1 =
+          await CharsetConverter.encode("UTF-8", ticketdata[i]['title']);
+      // String decoded = await CharsetConverter.decode(
+      //     "UTF-8", encTxt1); // Hello (Cześć) in Polish
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.westEur));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.greek));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.hebrew1));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.hebrew2));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.iran1));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.iran2));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.israel));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.katakana1));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.katakana2));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.latvian));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc1001_1));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc1001_2));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc3011));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc3012));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc3840));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc3843));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc3846));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc437_1));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc720));
+      // ticket.textEncoded(encTxt1,
+      //     styles: PosStyles(codeTable: PosCodeTable.pc737));
+      // ticket.text(decoded,containsChinese: true);
+      // ticket.text(encTxt1.toString());
+      // var _bytes = utf8.encode(ticketdata[i]['title']);
+      //-----------------------------------------------------------
+      print(ticketdata[i]['title']);
+      String title = ticketdata[i]['title'];
+      ticket.text('${title}',
+          containsChinese: true,
+          styles: PosStyles(
+              align: PosAlign.center, codeTable: PosCodeTable.westEur));
       for (var j = 0; j < ticketdata[i]['ChoiceIDList'].length; j++) {
         ticket.text(ticketdata[i]['ChoiceIDList'][j]['ChoiceName'],
             containsChinese: true);
@@ -774,7 +1409,6 @@ class BPageState extends State<BPage> {
   Future<void> printGraphics(data) async {
     String isConnected = await BluetoothThermalPrinter.connectionStatus;
     if (isConnected == "true") {
-      print("printGraphics:" + data);
       Ticket ticket = await getGraphicsTicket(data);
       final result = await BluetoothThermalPrinter.writeBytes(ticket.bytes);
       print("Print $result");
@@ -785,6 +1419,7 @@ class BPageState extends State<BPage> {
     }
   }
 
+  //品項變色（移除）
   _remove(orderid, index) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final myStringList = prefs.getStringList('savedrawList') ?? [];
@@ -814,17 +1449,17 @@ class BPageState extends State<BPage> {
     return myStringList;
   }
 
-  Future<List> _getOrderdraw() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final myStringList = prefs.getStringList('saveorderdrawList');
-    print(myStringList);
-    if (myStringList != null) {
-      setState(() {
-        _orderdrawlist = myStringList;
-      });
-    }
-    return myStringList;
-  }
+  // Future<List> _getOrderdraw() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   final myStringList = prefs.getStringList('saveorderdrawList');
+  //   print(myStringList);
+  //   if (myStringList != null) {
+  //     setState(() {
+  //       _orderdrawlist = myStringList;
+  //     });
+  //   }
+  //   return myStringList;
+  // }
 
   _setOrderdraw(list) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -857,42 +1492,15 @@ class BPageState extends State<BPage> {
       "allprice": order_data["price"]
     });
     // });
-    //-----Order畫單
-    // List order_drawList = [];
-    // List<String> draw_OrderID = [];
-    // print("aaa");
-    // print(json.decode(order_data["OrderTemp"]).length);
-    // print(_drawlist);
-    // for (var j = 0; j < json.decode(order_data["OrderTemp"]).length; j++) {
-    //   print("j:" + j.toString());
-    //   print(order_data["OrderID"] + j.toString());
-    //   if (_drawlist.contains(order_data["OrderID"] + j.toString())) {
-    //     order_drawList.add('1');
-    //   } else {
-    //     order_drawList.add('0');
-    //   }
-    // }
-    // order_drawList.every((element) => element == '1');
-    // print(order_drawList.every((element) => element == '1'));
-    // if (order_drawList.every((element) => element == '1') == false) {
-    //   print("hello");
-    //   _getOrderdraw().then((value) {
-    //     draw_OrderID = value;
-    //     if (draw_OrderID == null) {
-    //       draw_OrderID = [];
-    //     }
-    //     draw_OrderID.add(order_data["OrderID"]);
-    //     _setOrderdraw(draw_OrderID);
-    //   });
-    // }
-    //-----Order畫單
+
     Widget child;
     if (order_data['title'] == "(已結帳訂單)") {
       child = FlatButton(
-        minWidth: 120,
+        height: 60,
+        minWidth: 180,
         color: Theme.of(context).primaryColor,
         textColor: Colors.white,
-        child: Text('補單', style: new TextStyle(fontSize: 20)),
+        child: Text('補單', style: new TextStyle(fontSize: 28)),
         onPressed: () {
           getmac().then((value) {
             if (value == null) {
@@ -947,10 +1555,11 @@ class BPageState extends State<BPage> {
       );
     } else {
       child = FlatButton(
-        minWidth: 120,
+        height: 60,
+        minWidth: 180,
         color: Theme.of(context).primaryColor,
         textColor: Colors.white,
-        child: Text('結帳', style: new TextStyle(fontSize: 20)),
+        child: Text('結帳', style: new TextStyle(fontSize: 28)),
         onPressed: () {
           getmac().then((value) {
             if (value == null) {
@@ -988,26 +1597,19 @@ class BPageState extends State<BPage> {
                       style: TextStyle(color: Colors.white, fontSize: 40),
                     ),
                     onPressed: () {
-                      // print(data);
-                      //測試用
-                      // orderApply(order_data["OrderID"], order_data['price'],
-                      //             order_data['orderTempID'])
-                      //         .then((value) => Navigator.push(
-                      //             context,
-                      //             MaterialPageRoute(
-                      //                 builder: (_) => CloudPos())));
-                      //測試用
                       ifprintOpen().then((value) {
                         if (value == "Connected") {
                           orderApply(order_data["OrderID"], order_data['price'],
                                   order_data['orderTempID'])
                               .then((value) {
                             if (json.decode(value)["Status"] == "Success") {
-                              printGraphics(data);
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => CloudPos()));
+                              // printGraphics(data);
+                              Navigator.of(context).pushNamed('/CloudPos');
+
+                              // Navigator.push(
+                              //     context,
+                              //     MaterialPageRoute(
+                              //         builder: (_) => CloudPos()));
                             } else {
                               return Alert(
                                 context: context,
@@ -1064,6 +1666,31 @@ class BPageState extends State<BPage> {
       );
     }
     if (order_data["dining"] == "Intermal") {
+      for (var index = 0;
+          index < json.decode(order_data["OrderTemp"]).length;
+          index++) {
+        var totalPrice = 0;
+        try {
+          totalPrice = int.parse(
+                  json.decode(order_data["OrderTemp"])[index]["ItemPrice"]) *
+              int.parse(json.decode(order_data["OrderTemp"])[index]["Count"]);
+        } catch (e) {
+          totalPrice = int.parse(
+                  json.decode(order_data["OrderTemp"])[index]["ItemPrice"]) *
+              json.decode(order_data["OrderTemp"])[index]["Count"];
+        }
+        data.add({
+          'title': json.decode(order_data["OrderTemp"])[index]["FoodName"],
+          'price': int.parse(
+              json.decode(order_data["OrderTemp"])[index]["ItemPrice"]),
+          'qty':
+              int.parse(json.decode(order_data["OrderTemp"])[index]["Count"]),
+          'total_price': totalPrice,
+          'ChoiceIDList': json.decode(order_data["OrderTemp"])[index]
+              ["ChoiceIDList"],
+          'Remark': json.decode(order_data["OrderTemp"])[index]["Remark"]
+        });
+      }
       return Scaffold(
           appBar: AppBar(
             title: Text('畫單頁面'),
@@ -1135,22 +1762,6 @@ class BPageState extends State<BPage> {
                               json.decode(order_data["OrderTemp"])[index]
                                   ["Count"];
                         }
-                        // print(totalPrice);
-                        data.add({
-                          'title': json.decode(order_data["OrderTemp"])[index]
-                              ["FoodName"],
-                          'price': int.parse(
-                              json.decode(order_data["OrderTemp"])[index]
-                                  ["ItemPrice"]),
-                          'qty': int.parse(json
-                              .decode(order_data["OrderTemp"])[index]["Count"]),
-                          'total_price': totalPrice,
-                          'ChoiceIDList':
-                              json.decode(order_data["OrderTemp"])[index]
-                                  ["ChoiceIDList"],
-                          'Remark': json.decode(order_data["OrderTemp"])[index]
-                              ["Remark"]
-                        });
                       }
                       // print('here');
                       // print(_drawlist);
@@ -1163,12 +1774,9 @@ class BPageState extends State<BPage> {
                                         _drawlist.contains(
                                             order_data["OrderID"] +
                                                 index.toString())
-                                    //         ||
-                                    // drawlist.contains(
-                                    //     order_data["OrderID"] +
-                                    //         index.toString())
-                                    // ? Colors.blue.withOpacity(0.5)
-                                    ? Colors.red.withOpacity(0.3)
+                                    // ? Colors.black87.withOpacity(0.5)
+                                    ? Colors.orangeAccent.withOpacity(0.3)
+                                    // ? Colors.red.withOpacity(0.3)
                                     : Colors.white,
                                 child: new InkWell(
                                     onTap: () {
@@ -1182,19 +1790,46 @@ class BPageState extends State<BPage> {
                                           _drawlist = drawlist;
                                         });
                                       });
-                                      setState(() {
-                                        if (!_selectedItems.contains(index)) {
-                                          setState(() {
-                                            _selectedItems.add(index);
-                                            // _drawlist = drawlist;
-                                          });
-                                        }
-                                        // _cardColor1 = Colors.teal;
-                                        // _lineThrough =
-                                        //     TextDecoration.lineThrough;
-                                      });
+                                      // setState(() {
+                                      if (!_selectedItems.contains(index)) {
+                                        setState(() {
+                                          _selectedItems.add(index);
+                                          // _drawlist = drawlist;
+                                        });
+                                      }
+                                      //訂單變色===============
+                                      if (_selectedItems.length ==
+                                          json
+                                              .decode(order_data["OrderTemp"])
+                                              .length) {
+                                        // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
+                                        // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#1');
+                                      } else if (_selectedItems.length <
+                                              json
+                                                  .decode(
+                                                      order_data["OrderTemp"])
+                                                  .length &&
+                                          _selectedItems.length != 0) {
+                                        // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
+                                        // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#0');
+                                      } else if (_selectedItems.length == 0) {
+                                        print("等於零");
+                                        this._removeOrderdraw(
+                                            order_data["OrderID"]);
+                                      }
+                                      //訂單變色===============
+                                      // print(_selectedItems);
+                                      // print(_drawlist);
                                     },
                                     onLongPress: () {
+                                      // print("_selectedItems.length");
+                                      // print(_selectedItems.length);
                                       this._remove(order_data["OrderID"],
                                           index.toString());
                                       if (_selectedItems.contains(index)) {
@@ -1203,13 +1838,378 @@ class BPageState extends State<BPage> {
                                               (val) => val == index);
                                         });
                                       }
+                                      //訂單變色===============
+                                      if (_selectedItems.length ==
+                                          json
+                                              .decode(order_data["OrderTemp"])
+                                              .length) {
+                                        // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
+                                        // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#1');
+                                      } else if (_selectedItems.length <
+                                              json
+                                                  .decode(
+                                                      order_data["OrderTemp"])
+                                                  .length &&
+                                          _selectedItems.length != 0) {
+                                        // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
+                                        // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#0');
+                                      } else if (_selectedItems.length == 0) {
+                                        print("等於零");
+                                        this._removeOrderdraw(
+                                            order_data["OrderID"]);
+                                      }
+                                      //訂單變色===============
                                     },
+                                    child: Container(
+                                        constraints: BoxConstraints(
+                                          minHeight: 80,
+                                        ),
+                                        padding: EdgeInsets.all(10.0),
+                                        // height: 80,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: <Widget>[
+                                            Text(
+                                              (index + 1).toString(),
+                                              style: TextStyle(fontSize: 16),
+                                            ),
+                                            Column(
+                                              children: [
+                                                Text(
+                                                    "品名：" +
+                                                        json
+                                                                .decode(order_data[
+                                                                    "OrderTemp"])[
+                                                            index]["FoodName"],
+                                                    style: TextStyle(
+                                                        fontSize: 18,
+                                                        color: Colors.red,
+                                                        decoration: (_selectedItems
+                                                                    .contains(
+                                                                        index)) ||
+                                                                _drawlist.contains(
+                                                                    order_data[
+                                                                            "OrderID"] +
+                                                                        index
+                                                                            .toString())
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : TextDecoration
+                                                                .none)),
+                                                Text(
+                                                  "單價 " +
+                                                      json.decode(order_data[
+                                                              "OrderTemp"])[
+                                                          index]["ItemPrice"] +
+                                                      " " +
+                                                      "X" +
+                                                      " 數量：" +
+                                                      json.decode(order_data[
+                                                              "OrderTemp"])[
+                                                          index]["Count"],
+                                                  style: TextStyle(
+                                                      fontSize: 18,
+                                                      decoration: (_selectedItems
+                                                                  .contains(
+                                                                      index)) ||
+                                                              _drawlist.contains(
+                                                                  order_data[
+                                                                          "OrderID"] +
+                                                                      index
+                                                                          .toString())
+                                                          ? TextDecoration
+                                                              .lineThrough
+                                                          : TextDecoration
+                                                              .none),
+                                                ),
+                                              ],
+                                            ),
+                                            Text("   "),
+                                            Column(
+                                              children: [
+                                                Text(
+                                                    "備註：" +
+                                                        json.decode(order_data[
+                                                                "OrderTemp"])[index]
+                                                            ["Remark"],
+                                                    style: TextStyle(
+                                                        fontSize: 18,
+                                                        color: Colors
+                                                            .indigoAccent,
+                                                        decoration: (_selectedItems
+                                                                    .contains(
+                                                                        index)) ||
+                                                                _drawlist.contains(
+                                                                    order_data["OrderID"] +
+                                                                        index
+                                                                            .toString())
+                                                            ? TextDecoration
+                                                                .lineThrough
+                                                            : TextDecoration
+                                                                .none)),
+                                              ],
+                                            ),
+                                            Column(
+                                              children: [
+                                                // Text("單品項價錢" +
+                                                //     json.decode(order_data["OrderTemp"])[index]
+                                                //         ["FoodPrice"]),
+                                                ...choiceCard,
+                                                // Text("總額：" + order_data['price']),
+                                              ],
+                                            ),
+                                          ],
+                                        )))))
+                      ]));
+                    }),
+              )),
+              Container(
+                height: 75,
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      FlatButton(
+                        height: 60,
+                        minWidth: 180,
+                        color: Colors.redAccent,
+                        textColor: Colors.white,
+                        child: Text('取消訂單', style: new TextStyle(fontSize: 28)),
+                        onPressed: () {
+                          Alert(
+                            context: context,
+                            type: AlertType.error,
+                            title: "確定要取消訂單嗎",
+                            desc: "取消訂單後不會出現在歷史資料",
+                            buttons: [
+                              DialogButton(
+                                height: 80,
+                                width: 120,
+                                child: Text(
+                                  "確認",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 40),
+                                ),
+                                onPressed: () {
+                                  cancelApply(order_data["OrderID"]).then(
+                                      (value) => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) => CloudPos())));
+                                },
+                              )
+                            ],
+                          ).show();
+                        },
+                      ),
+                      child
+                    ]),
+              ),
+              Text(
+                "總額" + order_data["price"],
+                style: TextStyle(fontSize: 48),
+              )
+            ],
+          ));
+    } else if (order_data["dining"] == "TakeOut") {
+      for (var index = 0;
+          index < json.decode(order_data["OrderTemp"]).length;
+          index++) {
+        // var totalPrice = 0;
+        // try {
+        final totalPrice = int.parse(
+                json.decode(order_data["OrderTemp"])[index]["ItemPrice"]) *
+            int.parse(json.decode(order_data["OrderTemp"])[index]["Count"]);
+        // } catch (e) {
+        //   totalPrice = int.parse(
+        //           json.decode(order_data["OrderTemp"])[index]["ItemPrice"]) *
+        //       json.decode(order_data["OrderTemp"])[index]["Count"];
+        // }
+        data.add({
+          'title': json.decode(order_data["OrderTemp"])[index]["FoodName"],
+          'price': int.parse(
+              json.decode(order_data["OrderTemp"])[index]["ItemPrice"]),
+          'qty':
+              int.parse(json.decode(order_data["OrderTemp"])[index]["Count"]),
+          'total_price': totalPrice,
+          'ChoiceIDList': json.decode(order_data["OrderTemp"])[index]
+              ["ChoiceIDList"],
+          'Remark': json.decode(order_data["OrderTemp"])[index]["Remark"]
+        });
+      }
+      return Scaffold(
+          appBar: AppBar(
+            title: Text('畫單頁面'),
+          ),
+          body: Column(
+            children: [
+              Row(
+                children: [
+                  Text("   "),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("編號：" + order_data['orderTempID'],
+                          style: new TextStyle(fontSize: 20)),
+                      Text(order_data["diningStyle"],
+                          style: new TextStyle(fontSize: 22)),
+                    ],
+                  ),
+                  Spacer(),
+                  Column(
+                    // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text("訂單時間：" + order_data['DataTime'],
+                          style: new TextStyle(fontSize: 17)),
+                      // Text("桌單號碼：" + order_data["DiningStyleID"]),
+                    ],
+                  )
+                ],
+              ),
+              Expanded(
+                  child: Container(
+                child: ListView.builder(
+                    itemCount: order_data["OrderTemp"] == null
+                        ? 0
+                        : json.decode(order_data["OrderTemp"]).length,
+                    itemBuilder: (BuildContext context, int index) {
+                      print(index);
+                      choiceCard = [];
+                      if (json
+                              .decode(order_data["OrderTemp"])[index]
+                                  ["ChoiceIDList"]
+                              .length !=
+                          0) {
+                        for (var k = 0;
+                            k <
+                                json
+                                    .decode(order_data["OrderTemp"])[index]
+                                        ["ChoiceIDList"]
+                                    .length;
+                            k++) {
+                          choiceCard.add(
+                            Text(
+                                "細項名稱：" +
+                                    (json.decode(order_data["OrderTemp"])[index]
+                                        ["ChoiceIDList"][k])["ChoiceName"],
+                                style: new TextStyle(fontSize: 16)),
+                          );
+                        }
+                      }
+
+                      return Center(
+                          child: Column(children: [
+                        Card(
+                            color: (_selectedItems.contains(index)) ||
+                                    _drawlist.contains(order_data["OrderID"] +
+                                        index.toString())
+                                // ? Colors.blue.withOpacity(0.5)
+                                ? Colors.orangeAccent.withOpacity(0.3)
+                                // ? Colors.red.withOpacity(0.3)
+                                : Colors.white,
+                            child: new InkWell(
+                                onTap: () {
+                                  List drawlist; //餐點的變色
+                                  // List order_drawlist; //訂單的變色
+                                  this
+                                      ._savedraw(order_data["OrderID"],
+                                          index.toString())
+                                      .then((value) {
+                                    drawlist = value;
+                                    setState(() {
+                                      _drawlist = drawlist;
+                                    });
+                                  });
+                                  // setState(() {
+                                  if (!_selectedItems.contains(index)) {
+                                    setState(() {
+                                      _selectedItems.add(index);
+                                    });
+                                  }
+                                  // });
+                                  if (_selectedItems.length ==
+                                      json
+                                          .decode(order_data["OrderTemp"])
+                                          .length) {
+                                    // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
+                                    // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
+                                    this._saveOrderdraw(order_data["OrderID"],
+                                        order_data["OrderID"] + '#1');
+                                  } else if (_selectedItems.length <
+                                      json
+                                          .decode(order_data["OrderTemp"])
+                                          .length) {
+                                    // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
+                                    // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
+                                    this._saveOrderdraw(order_data["OrderID"],
+                                        order_data["OrderID"] + '#0');
+                                  }
+                                  //把狀態存到sharedpreferences
+                                  // print('index');
+                                  // print(index);
+                                  // print('_selectedItems');
+                                  // print(_selectedItems);
+                                  // print('_drawlist');
+                                  // print(_drawlist);
+                                },
+                                onLongPress: () {
+                                  this._remove(
+                                      order_data["OrderID"], index.toString());
+                                  if (_selectedItems.contains(index)) {
+                                    setState(() {
+                                      _selectedItems
+                                          .removeWhere((val) => val == index);
+                                    });
+                                  }
+                                  //訂單變色===============
+                                  if (_selectedItems.length ==
+                                      json
+                                          .decode(order_data["OrderTemp"])
+                                          .length) {
+                                    // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
+                                    // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
+                                    this._saveOrderdraw(order_data["OrderID"],
+                                        order_data["OrderID"] + '#1');
+                                  } else if (_selectedItems.length <
+                                          json
+                                              .decode(order_data["OrderTemp"])
+                                              .length &&
+                                      _selectedItems.length != 0) {
+                                    // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
+                                    // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
+                                    this._saveOrderdraw(order_data["OrderID"],
+                                        order_data["OrderID"] + '#0');
+                                  } else if (_selectedItems.length == 0) {
+                                    print("等於零");
+                                    this._removeOrderdraw(
+                                        order_data["OrderID"]);
+                                  }
+                                  //訂單變色===============
+                                },
+                                child: Container(
+                                    constraints: BoxConstraints(
+                                      minHeight: 80,
+                                    ),
+                                    padding: EdgeInsets.all(10.0),
+                                    // height: 80,
                                     child: Row(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
+                                          MainAxisAlignment.spaceEvenly,
                                       crossAxisAlignment:
                                           CrossAxisAlignment.center,
                                       children: <Widget>[
+                                        Text(
+                                          (index + 1).toString(),
+                                          style: TextStyle(fontSize: 16),
+                                        ),
                                         Row(
                                           children: [
                                             Column(
@@ -1247,6 +2247,7 @@ class BPageState extends State<BPage> {
                                                               "OrderTemp"])[
                                                           index]["Count"],
                                                   style: TextStyle(
+                                                      fontSize: 18,
                                                       decoration: (_selectedItems
                                                                   .contains(
                                                                       index)) ||
@@ -1262,6 +2263,7 @@ class BPageState extends State<BPage> {
                                                 ),
                                               ],
                                             ),
+                                            Text("   "),
                                             Column(
                                               children: [
                                                 Text(
@@ -1284,15 +2286,15 @@ class BPageState extends State<BPage> {
                                                                 .lineThrough
                                                             : TextDecoration
                                                                 .none)),
-                                              ],
-                                            ),
-                                            Column(
-                                              children: [
-                                                // Text("單品項價錢" +
-                                                //     json.decode(order_data["OrderTemp"])[index]
-                                                //         ["FoodPrice"]),
-                                                ...choiceCard,
-                                                // Text("總額：" + order_data['price']),
+                                                Column(
+                                                  children: [
+                                                    // Text("單品項價錢" +
+                                                    //     json.decode(order_data["OrderTemp"])[index]
+                                                    //         ["FoodPrice"]),
+                                                    ...choiceCard,
+                                                    // Text("總額：" + order_data['price']),
+                                                  ],
+                                                ),
                                               ],
                                             ),
                                           ],
@@ -1302,297 +2304,47 @@ class BPageState extends State<BPage> {
                       ]));
                     }),
               )),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                FlatButton(
-                  minWidth: 120,
-                  color: Colors.redAccent,
-                  textColor: Colors.white,
-                  child: Text('取消訂單', style: new TextStyle(fontSize: 20)),
-                  onPressed: () {
-                    Alert(
-                      context: context,
-                      type: AlertType.error,
-                      title: "確定要取消訂單嗎",
-                      desc: "取消訂單後不會出現在歷史資料",
-                      buttons: [
-                        DialogButton(
-                          height: 80,
-                          width: 120,
-                          child: Text(
-                            "確認",
-                            style: TextStyle(color: Colors.white, fontSize: 40),
-                          ),
-                          onPressed: () {
-                            cancelApply(order_data["OrderID"]).then((value) =>
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => CloudPos())));
-                          },
-                        )
-                      ],
-                    ).show();
-                  },
-                ),
-                child
-              ]),
-              Text(
-                "總額" + order_data["price"],
-                style: TextStyle(fontSize: 48),
-              )
-            ],
-          ));
-    } else if (order_data["dining"] == "TakeOut") {
-                            
-
-      return Scaffold(
-          appBar: AppBar(
-            title: Text('畫單頁面'),
-          ),
-          body: Column(
-            children: [
-              Row(
-                children: [
-                  Column(
+              Container(
+                height: 75,
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Text("編號：" + order_data['orderTempID'],
-                          style: new TextStyle(fontSize: 20)),
-                      Text(order_data["diningStyle"],
-                          style: new TextStyle(fontSize: 22)),
-                    ],
-                  ),
-                  Spacer(),
-                  Column(
-                    // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Text("訂單時間：" + order_data['DataTime'],
-                          style: new TextStyle(fontSize: 16)),
-                      // Text("桌單號碼：" + order_data["DiningStyleID"]),
-                    ],
-                  )
-                ],
+                      FlatButton(
+                        height: 60,
+                        minWidth: 180,
+                        color: Colors.redAccent,
+                        textColor: Colors.white,
+                        child: Text('取消訂單', style: new TextStyle(fontSize: 28)),
+                        onPressed: () {
+                          Alert(
+                            context: context,
+                            type: AlertType.error,
+                            title: "確定要取消訂單嗎",
+                            desc: "取消訂單後不會出現在歷史資料",
+                            buttons: [
+                              DialogButton(
+                                height: 80,
+                                width: 120,
+                                child: Text(
+                                  "確認",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 40),
+                                ),
+                                onPressed: () {
+                                  cancelApply(order_data["OrderID"]).then(
+                                      (value) => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) => CloudPos())));
+                                },
+                              )
+                            ],
+                          ).show();
+                        },
+                      ),
+                      child
+                    ]),
               ),
-              Expanded(
-                  child: Container(
-                child: ListView.builder(
-                    itemCount: order_data["OrderTemp"] == null
-                        ? 0
-                        : json.decode(order_data["OrderTemp"]).length,
-                    itemBuilder: (BuildContext context, int index) {
-                      print(index);
-                      choiceCard = [];
-                      if (json
-                              .decode(order_data["OrderTemp"])[index]
-                                  ["ChoiceIDList"]
-                              .length !=
-                          0) {
-                        for (var k = 0;
-                            k <
-                                json
-                                    .decode(order_data["OrderTemp"])[index]
-                                        ["ChoiceIDList"]
-                                    .length;
-                            k++) {
-                          choiceCard.add(
-                            Text(
-                                "細項名稱：" +
-                                    (json.decode(order_data["OrderTemp"])[index]
-                                        ["ChoiceIDList"][k])["ChoiceName"],
-                                style: new TextStyle(fontSize: 16)),
-                          );
-                        }
-                      }
-                      final totalPrice = int.parse(
-                              json.decode(order_data["OrderTemp"])[index]
-                                  ["ItemPrice"]) *
-                          int.parse(json.decode(order_data["OrderTemp"])[index]
-                              ["Count"]);
-                      data.add({
-                        'title': json.decode(order_data["OrderTemp"])[index]
-                            ["FoodName"],
-                        'price': int.parse(
-                            json.decode(order_data["OrderTemp"])[index]
-                                ["ItemPrice"]),
-                        'qty': int.parse(json
-                            .decode(order_data["OrderTemp"])[index]["Count"]),
-                        'total_price': totalPrice,
-                        'ChoiceIDList':
-                            json.decode(order_data["OrderTemp"])[index]
-                                ["ChoiceIDList"],
-                        'Remark': json.decode(order_data["OrderTemp"])[index]
-                            ["Remark"]
-                      });
-
-                      return Center(
-                          child: Column(children: [
-                        Card(
-                            color: (_selectedItems.contains(index)) ||
-                                    _drawlist.contains(order_data["OrderID"] +
-                                        index.toString())
-                                // ? Colors.blue.withOpacity(0.5)
-                                ? Colors.red.withOpacity(0.3)
-                                : Colors.white,
-                            child: new InkWell(
-                                onTap: () {
-                                  List drawlist;
-                                  this
-                                      ._savedraw(order_data["OrderID"],
-                                          index.toString())
-                                      .then((value) {
-                                    drawlist = value;
-                                    setState(() {
-                                      _drawlist = drawlist;
-                                    });
-                                  });
-                                  setState(() {
-                                    if (!_selectedItems.contains(index)) {
-                                      setState(() {
-                                        _selectedItems.add(index);
-                                      });
-                                    }
-                                  });
-                                },
-                                onLongPress: () {
-                                  this._remove(
-                                      order_data["OrderID"], index.toString());
-                                  if (_selectedItems.contains(index)) {
-                                    setState(() {
-                                      _selectedItems
-                                          .removeWhere((val) => val == index);
-                                    });
-                                  }
-                                },
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: <Widget>[
-                                    Row(
-                                      children: [
-                                        Column(
-                                          children: [
-                                            Text(
-                                                "品名：" +
-                                                    json.decode(order_data[
-                                                            "OrderTemp"])[index]
-                                                        ["FoodName"],
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    color: Colors.red,
-                                                    decoration: (_selectedItems
-                                                                .contains(
-                                                                    index)) ||
-                                                            _drawlist.contains(
-                                                                order_data[
-                                                                        "OrderID"] +
-                                                                    index
-                                                                        .toString())
-                                                        ? TextDecoration
-                                                            .lineThrough
-                                                        : TextDecoration.none)),
-                                            Text(
-                                              "單價 " +
-                                                  json.decode(order_data[
-                                                          "OrderTemp"])[index]
-                                                      ["ItemPrice"] +
-                                                  " " +
-                                                  "X" +
-                                                  " 數量：" +
-                                                  json.decode(order_data[
-                                                          "OrderTemp"])[index]
-                                                      ["Count"],
-                                              style: TextStyle(
-                                                  decoration: (_selectedItems
-                                                              .contains(
-                                                                  index)) ||
-                                                          _drawlist.contains(
-                                                              order_data[
-                                                                      "OrderID"] +
-                                                                  index
-                                                                      .toString())
-                                                      ? TextDecoration
-                                                          .lineThrough
-                                                      : TextDecoration.none),
-                                            ),
-                                          ],
-                                        ),
-                                        Text("   "),
-                                        Column(
-                                          children: [
-                                            Text(
-                                                "備註：" +
-                                                    json.decode(order_data[
-                                                            "OrderTemp"])[index]
-                                                        ["Remark"],
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    color: Colors.indigoAccent,
-                                                    decoration: (_selectedItems
-                                                                .contains(
-                                                                    index)) ||
-                                                            _drawlist.contains(
-                                                                order_data[
-                                                                        "OrderID"] +
-                                                                    index
-                                                                        .toString())
-                                                        ? TextDecoration
-                                                            .lineThrough
-                                                        : TextDecoration.none)),
-                                            Column(
-                                              children: [
-                                                // Text("單品項價錢" +
-                                                //     json.decode(order_data["OrderTemp"])[index]
-                                                //         ["FoodPrice"]),
-                                                ...choiceCard,
-                                                // Text("總額：" + order_data['price']),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    )
-                                  ],
-                                )))
-                      ]));
-                    }),
-              )),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                FlatButton(
-                  minWidth: 120,
-                  color: Colors.redAccent,
-                  textColor: Colors.white,
-                  child: Text('取消訂單', style: new TextStyle(fontSize: 20)),
-                  onPressed: () {
-                    Alert(
-                      context: context,
-                      type: AlertType.error,
-                      title: "確定要取消訂單嗎",
-                      desc: "取消訂單後不會出現在歷史資料",
-                      buttons: [
-                        DialogButton(
-                          height: 80,
-                          width: 120,
-                          child: Text(
-                            "確認",
-                            style: TextStyle(color: Colors.white, fontSize: 40),
-                          ),
-                          onPressed: () {
-                            cancelApply(order_data["OrderID"]).then((value) =>
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => CloudPos())));
-                          },
-                        )
-                      ],
-                    ).show();
-                    // cancelApply(order_data["OrderID"]);
-                    // Navigator.push(
-                    //     context, MaterialPageRoute(builder: (_) => CloudPos()));
-                  },
-                ),
-                child
-              ]),
               Text(
                 "總額" + order_data["price"],
                 style: TextStyle(fontSize: 48),
