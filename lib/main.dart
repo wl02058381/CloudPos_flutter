@@ -1540,6 +1540,7 @@ class BPageState extends State<BPage> {
                                     : Colors.white,
                                 child: new InkWell(
                                     onTap: () {
+                                      List saveindex_list = []; //餐點的變色
                                       List drawlist;
                                       this
                                           ._savedraw(order_data["OrderID"],
@@ -1549,6 +1550,27 @@ class BPageState extends State<BPage> {
                                         setState(() {
                                           _drawlist = drawlist;
                                         });
+                                        print(_drawlist);
+                                    for (var j = 0;
+                                        j <
+                                            json
+                                                .decode(order_data["OrderTemp"])
+                                                .length;
+                                        j++) {
+                                      if (_drawlist.contains(
+                                          order_data["OrderID"] +
+                                              j.toString())) {
+                                        saveindex_list.add(true);
+                                      } else {
+                                        saveindex_list.add(false);
+                                      }
+                                    }
+                                    print("QQ:");
+                                    print(saveindex_list);
+                                    if (!saveindex_list.contains(false)) {
+                                      this._saveOrderdraw(order_data["OrderID"],
+                                          order_data["OrderID"] + '#1');
+                                    }
                                       });
                                       // setState(() {
                                       if (!_selectedItems.contains(index)) {
@@ -1558,10 +1580,7 @@ class BPageState extends State<BPage> {
                                         });
                                       }
                                       //訂單變色===============
-                                      if (_selectedItems.length ==
-                                          json
-                                              .decode(order_data["OrderTemp"])
-                                              .length) {
+                                      if (saveindex_list.contains(false)==true) {
                                         // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
                                         // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
                                         this._saveOrderdraw(
