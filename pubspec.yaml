@@ -47,7 +47,6 @@ dependencies:
   # esc_pos_utils: ^0.3.6
   flutter_progress_button: '^0.6.4'
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

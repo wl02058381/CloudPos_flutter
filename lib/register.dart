@@ -80,94 +80,114 @@ class RegisterPage extends StatelessWidget {
               child: RaisedButton(
                 child: Text("註冊", style: TextStyle(fontSize: 20)),
                 onPressed: () {
-                  String status;
-                  // String accountstatus;
-                  this.registerBTN().then((value) {
-                    if (value != 'neterror') {
-                      status = json.decode(value)["Status"];
-                      // accountstatus = json.decode(value)["msg"];
-                      print(status);
-                    }
-                    if (value == 'neterror') {
-                      Alert(
-                        context: context,
-                        type: AlertType.error,
-                        title: "註冊失敗",
-                        desc: "請檢查網路連線狀態",
-                        buttons: [
-                          DialogButton(
-                            child: Text(
-                              "確認",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            width: 120,
-                          )
-                        ],
-                      ).show();
-                    }
-                    if (status == "Success") {
-                      Alert(
-                        context: context,
-                        type: AlertType.success,
-                        title: "註冊成功",
-                        desc: "註冊成功",
-                        buttons: [
-                          DialogButton(
-                            child: Text(
-                              "確認",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
-                            ),
-                            onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) => LoginPage())),
-                            width: 120,
-                          )
-                        ],
-                      ).show();
+                  if (accountController.text.length == 0 ||
+                      passwordController.text.length == 0) {
+                    Alert(
+                      context: context,
+                      type: AlertType.error,
+                      title: "不可輸入空值",
+                      desc: "帳號或密碼錯誤",
+                      buttons: [
+                        DialogButton(
+                          child: Text(
+                            "確認",
+                            style: TextStyle(color: Colors.white, fontSize: 20),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          width: 120,
+                        )
+                      ],
+                    ).show();
+                  } else {
+                    String status;
+                    // String accountstatus;
+                    this.registerBTN().then((value) {
+                      if (value != 'neterror') {
+                        status = json.decode(value)["Status"];
+                        // accountstatus = json.decode(value)["msg"];
+                        print(status);
+                      }
+                      if (value == 'neterror') {
+                        Alert(
+                          context: context,
+                          type: AlertType.error,
+                          title: "註冊失敗",
+                          desc: "請檢查網路連線狀態",
+                          buttons: [
+                            DialogButton(
+                              child: Text(
+                                "確認",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 20),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                              width: 120,
+                            )
+                          ],
+                        ).show();
+                      }
+                      if (status == "Success") {
+                        Alert(
+                          context: context,
+                          type: AlertType.success,
+                          title: "註冊成功",
+                          desc: "註冊成功",
+                          buttons: [
+                            DialogButton(
+                              child: Text(
+                                "確認",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 20),
+                              ),
+                              onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => LoginPage())),
+                              width: 120,
+                            )
+                          ],
+                        ).show();
 
-                      // print(json.decode(value)["StoreID"]);
-                    } else if (status == "AccountRepeat") {
-                      Alert(
-                        context: context,
-                        type: AlertType.error,
-                        title: "註冊失敗",
-                        desc: "已經有重覆的帳號，請更換帳號重試",
-                        buttons: [
-                          DialogButton(
-                            child: Text(
-                              "確認",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            width: 120,
-                          )
-                        ],
-                      ).show();
-                    } else {
-                      Alert(
-                        context: context,
-                        type: AlertType.error,
-                        title: "註冊失敗",
-                        desc: "帳號或密碼錯誤",
-                        buttons: [
-                          DialogButton(
-                            child: Text(
-                              "確認",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            width: 120,
-                          )
-                        ],
-                      ).show();
-                    }
-                  });
+                        // print(json.decode(value)["StoreID"]);
+                      } else if (status == "AccountRepeat") {
+                        Alert(
+                          context: context,
+                          type: AlertType.error,
+                          title: "註冊失敗",
+                          desc: "已經有重覆的帳號，請更換帳號重試",
+                          buttons: [
+                            DialogButton(
+                              child: Text(
+                                "確認",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 20),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                              width: 120,
+                            )
+                          ],
+                        ).show();
+                      } else {
+                        Alert(
+                          context: context,
+                          type: AlertType.error,
+                          title: "註冊失敗",
+                          desc: "帳號或密碼錯誤",
+                          buttons: [
+                            DialogButton(
+                              child: Text(
+                                "確認",
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 20),
+                              ),
+                              onPressed: () => Navigator.pop(context),
+                              width: 120,
+                            )
+                          ],
+                        ).show();
+                      }
+                    });
+                  }
                 },
               ),
             ),

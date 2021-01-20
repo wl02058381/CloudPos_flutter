@@ -39,7 +39,7 @@ class LoginPage extends StatelessWidget {
       final String resbody = response.body;
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('StoreID', json.decode(resbody)["StoreID"]);
-      await prefs.setString('StoreName', json.decode(resbody)["StoreName"]);
+      // await prefs.setString('StoreName', json.decode(resbody)["StoreName"]);
       return resbody;
     } catch (e) {
       print(e);
@@ -88,72 +88,96 @@ class LoginPage extends StatelessWidget {
                 child: Column(
                   children: [
                     ProgressButton(
-                      defaultWidget: const Text('登入',style: TextStyle(fontSize: 28),),
+                      defaultWidget: const Text(
+                        '登入',
+                        style: TextStyle(fontSize: 28),
+                      ),
                       progressWidget: const CircularProgressIndicator(),
                       width: 196,
                       height: 60,
                       onPressed: () async {
-                        String status;
-                        var value = await this.loginBTN();
-                        int score = await Future.delayed(
-                            const Duration(milliseconds: 1000), () => 42);
-                        return () {
-                          if (value == 'neterror') {
-                            Alert(
-                              context: context,
-                              type: AlertType.error,
-                              title: "登入失敗",
-                              desc: "請檢查網路連線狀態",
-                              buttons: [
-                                DialogButton(
-                                  child: Text(
-                                    "確認",
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 20),
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                  width: 120,
-                                )
-                              ],
-                            ).show();
-                          }
-                          status = json.decode(value)["Status"];
-                          print(status);
-                          if (status == "Success") {
-                            Navigator.of(context).pushNamed('/HomePage');
-                            // logindata.add(json.decode(value)["StoreID"]);
-                            // logindata.add(json.decode(value)["StoreName"]);
-                            // Navigator.push(
-                            //     context,
-                            //     MaterialPageRoute(
-                            //         builder: (context) => HomePage()));
-                            print(json.decode(value)["StoreID"]);
-                            print(json.decode(value)["StoreName"]);
-                          } else {
-                            Alert(
-                              context: context,
-                              type: AlertType.error,
-                              title: "登入失敗",
-                              desc: "帳號或密碼錯誤",
-                              buttons: [
-                                DialogButton(
-                                  child: Text(
-                                    "確認",
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 20),
-                                  ),
-                                  onPressed: () => Navigator.pop(context),
-                                  width: 120,
-                                )
-                              ],
-                            ).show();
-                          }
-                        };
+                        if (accountController.text.length == 0 ||
+                            passwordController.text.length == 0) {
+                          Alert(
+                            context: context,
+                            type: AlertType.error,
+                            title: "不可輸入空值",
+                            desc: "帳號或密碼錯誤",
+                            buttons: [
+                              DialogButton(
+                                child: Text(
+                                  "確認",
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 20),
+                                ),
+                                onPressed: () => Navigator.pop(context),
+                                width: 120,
+                              )
+                            ],
+                          ).show();
+                        } else {
+                          String status;
+                          var value = await this.loginBTN();
+                          int score = await Future.delayed(
+                              const Duration(milliseconds: 1000), () => 42);
+                          return () {
+                            if (value == 'neterror') {
+                              Alert(
+                                context: context,
+                                type: AlertType.error,
+                                title: "登入失敗",
+                                desc: "請檢查網路連線狀態",
+                                buttons: [
+                                  DialogButton(
+                                    child: Text(
+                                      "確認",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 20),
+                                    ),
+                                    onPressed: () => Navigator.pop(context),
+                                    width: 120,
+                                  )
+                                ],
+                              ).show();
+                            }
+                            status = json.decode(value)["Status"];
+                            print(status);
+                            if (status == "Success") {
+                              Navigator.of(context).pushNamed('/HomePage');
+                              // logindata.add(json.decode(value)["StoreID"]);
+                              // logindata.add(json.decode(value)["StoreName"]);
+                              // Navigator.push(
+                              //     context,
+                              //     MaterialPageRoute(
+                              //         builder: (context) => HomePage()));
+                              print(json.decode(value)["StoreID"]);
+                              print(json.decode(value)["StoreName"]);
+                            } else {
+                              Alert(
+                                context: context,
+                                type: AlertType.error,
+                                title: "登入失敗",
+                                desc: "帳號或密碼錯誤",
+                                buttons: [
+                                  DialogButton(
+                                    child: Text(
+                                      "確認",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 20),
+                                    ),
+                                    onPressed: () => Navigator.pop(context),
+                                    width: 120,
+                                  )
+                                ],
+                              ).show();
+                            }
+                          };
+                        }
                       },
                     ),
                     SizedBox(
-              height: 20.0,
-            ),
+                      height: 20.0,
+                    ),
                     // RaisedButton(
                     //   child: Text(
                     //     "登入",
