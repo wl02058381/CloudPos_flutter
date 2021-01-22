@@ -126,7 +126,7 @@ class RegisterPage extends StatelessWidget {
                           ],
                         ).show();
                       }
-                      if (status == "Success") {
+                      else if (status == "Success") {
                         Alert(
                           context: context,
                           type: AlertType.success,

@@ -46,7 +46,7 @@ dependencies:
   charset_converter: ^1.0.3
   # esc_pos_utils: ^0.3.6
   flutter_progress_button: '^0.6.4'
-
+  # background_fetch: '^0.5.1'
 dev_dependencies:
   flutter_test:
     sdk: flutter

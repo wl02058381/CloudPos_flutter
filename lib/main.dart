@@ -2,7 +2,7 @@
 // import 'package:flutter/semantics.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
 // import 'dart:io';
 // import 'package:webview_flutter/webview_flutter.dart';
@@ -17,12 +17,20 @@ import 'package:flutter/material.dart' hide Image;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:bluetooth_thermal_printer/bluetooth_thermal_printer.dart';
-import 'dart:typed_data';
+// import 'dart:typed_data';
 // import 'package:image/image.dart';
 import 'package:intl/intl.dart';
 import 'package:rflutter_alert/rflutter_alert.dart';
 import 'package:charset_converter/charset_converter.dart';
-import 'package:gbk_codec/gbk_codec.dart';
+// import 'package:gbk_codec/gbk_codec.dart';
+// import 'package:cloudpos_online/timer.dart' as tt;
+// import 'package:background_fetch/background_fetch.dart';
+
+//關閉APP會執行
+// void backgroundFetchHeadlessTask(String taskId) async {
+//   print('[BackgroundFetch] Headless event received.');
+//   BackgroundFetch.finish(taskId);
+// }
 
 //----
 void main() {
@@ -37,6 +45,7 @@ void main() {
         '/CloudPos': (BuildContext context) => new CloudPos(),
       },
       debugShowCheckedModeBanner: false));
+  // BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
 }
 
 class FoodInfo {
@@ -80,7 +89,7 @@ class HomePageState extends State<HomePage> {
         'Accept': 'application/json',
       };
       final response = await http.post(url, body: body, headers: headers);
-      print(json.decode(response.body)["data"]["StoreName"]);
+      //printjson.decode(response.body)["data"]["StoreName"]);
       String storeName = json.decode(response.body)["data"]["StoreName"];
       await prefs.setString('storeName', storeName);
       // setState(() {
@@ -95,10 +104,15 @@ class HomePageState extends State<HomePage> {
   String data;
   String storeName;
   HomePageState({this.data}); //StoreName
+  setisnotrun() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isrun', false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    print("HomePageStatebuild");
+    // setisnotrun();
+    //print"HomePageStatebuild");
     // String storeName;
     return FutureBuilder(
         future: getstorename().then((value) {
@@ -285,18 +299,23 @@ class HomePageState extends State<HomePage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String mac = prefs.getString('mac');
       if (mac == null) {
-        print("藍芽未連線");
+        //print"藍芽未連線");
       }
-      print("mac");
-      print(mac);
+      //print"mac");
+      //printmac);
       final String result = await BluetoothThermalPrinter.connect(mac);
-      print("state conneected $result");
+      //print"state conneected $result");
     }
 
     setConnect();
     super.initState();
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 }
 // class HomePageState extends State<HomePage>{
@@ -307,12 +326,16 @@ class CloudPos extends StatefulWidget {
   CloudPosState createState() => CloudPosState();
 }
 
+Timer _timer;
+String title = "(未結帳訂單)"; //預設title;
+
 class CloudPosState extends State<CloudPos> {
   final String url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
   String clouddata;
   dynamic order_data = {};
-  Timer _timer;
+
   int seconds;
+  bool isrun;
   List<String> _orderdrawlist = List<String>();
   Future<String> getSWData(paid, del) async {
     try {
@@ -350,7 +373,7 @@ class CloudPosState extends State<CloudPos> {
       'Accept': 'application/json',
     };
     final response = await http.post(url, body: body, headers: headers);
-    print(response.body);
+    //printresponse.body);
     // if  (json.decode(response.body)["Data"]
     title = "(編號搜尋)";
     setState(() {
@@ -362,18 +385,17 @@ class CloudPosState extends State<CloudPos> {
   Future<List> _getOrderdraw() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final order_drawlist = prefs.getStringList('order_drawlist') ?? [];
-    // print('order_drawlist $order_drawlist ');
+    // //print'order_drawlist $order_drawlist ');
     // prefs.remove('order_drawlist');
     return order_drawlist;
   }
 
-  String title = "(未結帳訂單)"; //預設title
-
   @override
   TextEditingController searchController = new TextEditingController();
   Widget build(BuildContext context) {
+    // //print_timer);
     // startTimer();
-    print("CloudPosStatebuild");
+    //print"CloudPosStatebuild");
     var diningStyle = new List();
     var dining = new List();
     var cardcolor = new List();
@@ -381,7 +403,7 @@ class CloudPosState extends State<CloudPos> {
     var orderAndstatus = new Map();
     return FutureBuilder<List>(
       future: _getOrderdraw().then((order_drawlist) {
-        // print(order_drawlist);
+        // //printorder_drawlist);
         //把字串分開用Map去存
         for (var i = 0; i < order_drawlist.length; i++) {
           orderAndstatus[
@@ -417,7 +439,7 @@ class CloudPosState extends State<CloudPos> {
                 for (var i = 0;
                     i < json.decode(clouddata)["Data"].length;
                     i++) {
-                  // print(orderAndstatus
+                  // //printorderAndstatus
                   //     .containsKey(json.decode(clouddata)["Data"][i]["OrderID"]));
                   dining.add(json.decode(clouddata)["Data"][i]["DiningStyle"]);
                   if (json.decode(clouddata)["Data"][i]["DiningStyle"] ==
@@ -432,7 +454,8 @@ class CloudPosState extends State<CloudPos> {
                                 ["OrderID"]] ==
                             '1') {
                       // 畫完的
-                      cardcolor.add(Colors.cyan);
+                      // cardcolor.add(Colors.redAccent[100]);
+                      cardcolor.add(Colors.black12);
                     } else if (orderAndstatus.containsKey(
                                 json.decode(clouddata)["Data"][i]["OrderID"]) ==
                             true &&
@@ -440,9 +463,13 @@ class CloudPosState extends State<CloudPos> {
                                 ["OrderID"]] ==
                             '0') {
                       // 沒畫完
-                      cardcolor.add(Colors.blueAccent);
+                      cardcolor.add(Colors.orangeAccent[100]);
+                      // cardcolor.add(Colors.orangeAccent[100]);
+                      
                     } else {
-                      cardcolor.add(Colors.black12);
+                      //沒畫
+                      // cardcolor.add(Colors.black12);
+                      cardcolor.add(Colors.red[100]);
                     }
                   } else {
                     //內用
@@ -455,7 +482,10 @@ class CloudPosState extends State<CloudPos> {
                                 ["OrderID"]] ==
                             '1') {
                       // 畫完的
-                      cardcolor.add(Colors.cyan);
+                      // cardcolor.add(Colors.cyan);
+                      // cardcolor.add(Colors.redAccent[100]);
+                      // cardcolor.add(Colors.black26);
+                      cardcolor.add(Colors.black12);
                     } else if (orderAndstatus.containsKey(
                                 json.decode(clouddata)["Data"][i]["OrderID"]) ==
                             true &&
@@ -463,9 +493,13 @@ class CloudPosState extends State<CloudPos> {
                                 ["OrderID"]] ==
                             '0') {
                       // 沒畫完
-                      cardcolor.add(Colors.blueAccent);
+                      // cardcolor.add(Colors.blueAccent);
+                      cardcolor.add(Colors.orangeAccent[100]);
+                      // cardcolor.add(Colors.black26);
                     } else {
-                      cardcolor.add(Colors.black26);
+                      // cardcolor.add(Colors.orangeAccent[100]);
+                      cardcolor.add(Colors.redAccent[100]);
+                      // cardcolor.add(Colors.black26);
                     }
                   }
                 }
@@ -480,6 +514,8 @@ class CloudPosState extends State<CloudPos> {
                       ),
                       onPressed: () {
                         Navigator.of(context).pushNamed('/HomePage');
+                        // setisnotrun();
+
                         // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
                         // Navigator.push(
                         //     context, MaterialPageRoute(builder: (_) => HomePage()));
@@ -502,6 +538,7 @@ class CloudPosState extends State<CloudPos> {
                                 child: Text('未結帳訂單',
                                     style: TextStyle(fontSize: 20.0)),
                                 onPressed: () {
+                                  // _timer.cancel();
                                   this.getSWData('0', '0').then((value) {
                                     if (value == "error") {
                                       Alert(
@@ -540,6 +577,7 @@ class CloudPosState extends State<CloudPos> {
                                 child: Text('已結帳訂單',
                                     style: TextStyle(fontSize: 20.0)),
                                 onPressed: () {
+                                  // _timer.cancel();
                                   this.getSWData('1', '0').then((value) {
                                     if (value == "error") {
                                       Alert(
@@ -577,6 +615,7 @@ class CloudPosState extends State<CloudPos> {
                                 child: Text('歷史紀錄',
                                     style: TextStyle(fontSize: 20.0)),
                                 onPressed: () {
+                                  // _timer.cancel();
                                   this.getSWData('-1', '0').then((value) {
                                     if (value == "error") if (value ==
                                         "error") {
@@ -692,7 +731,7 @@ class CloudPosState extends State<CloudPos> {
                                       : Colors.white,
                               child: new InkWell(
                                   onTap: () {
-                                    print("Card按鈕");
+                                    //print"Card按鈕");
                                     Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -755,7 +794,7 @@ class CloudPosState extends State<CloudPos> {
                                                       [index]["TotalPrice"],
                                               style: TextStyle(
                                                   fontSize: 22.0,
-                                                  color: Colors.red)),
+                                                  color: Colors.black)),
                                           Column(
                                             children: [
                                               Text(diningStyle[index],
@@ -782,7 +821,7 @@ class CloudPosState extends State<CloudPos> {
                 ),
               );
             } catch (e) {
-              print(e);
+              //printe);
               return Scaffold(
                   backgroundColor: Colors.blue[100],
                   body: Center(
@@ -820,8 +859,21 @@ class CloudPosState extends State<CloudPos> {
 
   @override
   void initState() {
-    // print("安安");
-    this.getSWData('0', '0').then((value) {
+    // //print"安安IIIIIII");
+    var paid = '0';
+    var del = '0';
+    print(title);
+    if (title == '(未結帳訂單)') {
+      paid = '0';
+      del = '0';
+    } else if (title == "(已結帳訂單)") {
+      paid = '1';
+      del = '0';
+    } else if (title == "(歷史紀錄)") {
+      paid = '-1';
+      del = '0';
+    }
+    this.getSWData(paid, del).then((value) {
       if (value == "error") {
         Alert(
           context: context,
@@ -847,28 +899,73 @@ class CloudPosState extends State<CloudPos> {
         ).show();
       }
     });
+    bool isrun;
     startTimer();
+    _getisrun().then((value) {
+      isrun = value;
+      //print"isrun:" + isrun.toString());
+      if (isrun != true) {
+        startTimer();
+      }
+    });
     super.initState();
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   }
 
-  void startTimer() {
+  Future<bool> _getisrun() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final isrun = prefs.getBool('isrun');
+    return isrun;
+  }
+
+  setisnotrun() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isrun', false);
+    if (_timer != null) {
+      _timer.cancel();
+    }
+  }
+
+  void startTimer() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isrun', true);
+    isrun = true;
     //設定 1 秒回撥一次
     const period = const Duration(seconds: 30);
-    _timer = Timer(period, () {
+    _timer = Timer.periodic(period, (timer) {
       //更新介面
+      print("跑跑");
+      print(title);
+      //print_timer.isActive);
       if (title == '(未結帳訂單)') {
+        // _timer.cancel();
         this.getSWData('0', '0');
-        startTimer();
       } else if (title == "(已結帳訂單)") {
+        // _timer.cancel();
         this.getSWData('1', '0');
-        startTimer();
+        // startTimer();
+        // if(_timer==null){
+        // startTimer();
+        // }
       } else if (title == "(歷史紀錄)") {
+        // _timer.cancel();
         this.getSWData('-1', '0');
-        startTimer();
+        // startTimer();
+        // if(_timer==null){
+        // startTimer();
+        // }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    // cameraController?.dispose();
+    _timer.cancel();
+    // _timer = null;
+
+    super.dispose();
   }
 }
 
@@ -917,11 +1014,11 @@ class BPageState extends State<BPage> {
       'Accept': 'application/json',
     };
     final response = await http.post(url, body: body, headers: headers);
-    print(json.decode(response.body)["Status"]);
+    //printjson.decode(response.body)["Status"]);
     // setState(() {
     //   applydata = response.body;
     // });
-    print("applydata Success!");
+    //print"applydata Success!");
     return response.body;
   }
 
@@ -939,7 +1036,7 @@ class BPageState extends State<BPage> {
     // setState(() {
     //   applydata = response.body;
     // });
-    print("cancelApply Success!");
+    //print"cancelApply Success!");
     return "cancelApply Success!";
   }
 
@@ -950,7 +1047,7 @@ class BPageState extends State<BPage> {
     if (!myStringList.contains(orderid + index)) {
       myStringList.add(orderid + index);
     }
-    print('Pressed $myStringList ');
+    //print'Pressed $myStringList ');
     // await prefs.setString('savedraw', orderid + index);
     await prefs.setStringList('savedrawList', myStringList);
     return myStringList;
@@ -960,7 +1057,7 @@ class BPageState extends State<BPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     // String savedraw = (prefs.getString('savedraw'));
     final order_drawlist = prefs.getStringList('order_drawlist') ?? [];
-    // print('order_drawlist $order_drawlist ');
+    // //print'order_drawlist $order_drawlist ');
 
     // await prefs.setString('savedraw', orderid + index);
     // await prefs.setStringList('order_drawlist', order_drawlist);
@@ -977,7 +1074,7 @@ class BPageState extends State<BPage> {
       myStringList.remove(orderID + '#1');
     }
     myStringList.add(order_drawlist);
-    // print('order_drawlist $myStringList ');
+    // //print'order_drawlist $myStringList ');
     // await prefs.setString('savedraw', orderid + index);
     await prefs.setStringList('order_drawlist', myStringList);
     // return myStringList;
@@ -1018,10 +1115,10 @@ class BPageState extends State<BPage> {
       // newstr = str.replaceAll(new RegExp(r'[A-Z]'), 'Ａ');
       str.replaceAllMapped(new RegExp(r'[A-Z]'), (Match m) => "R");
     }
-    print(str);
-    // print(newstr);
+    //printstr);
+    // //printnewstr);
     // var number = str.codeUnits;
-    // print(String.fromCharCode(number + 65248));
+    // //printString.fromCharCode(number + 65248));
   }
 
   Future<Ticket> getGraphicsTicket(ticketdata) async {
@@ -1030,7 +1127,7 @@ class BPageState extends State<BPage> {
     final ticket = Ticket(PaperSize.mm80);
     String storeName;
     storeName = await getstorename();
-    print(storeName);
+    //printstoreName);
     ticket.text(
       '${storeName}',
       containsChinese: true,
@@ -1088,9 +1185,9 @@ class BPageState extends State<BPage> {
     // ticket.text('用餐方式${dintext}', containsChinese: true);
     ticket.text('--------------------------------');
     List<String> charsets = await CharsetConverter.availableCharsets();
-    print(charsets);
+    //printcharsets);
     for (var i = 1; i < ticketdata.length; i++) {
-      // print("INININININNIN");
+      // //print"INININININNIN");
       // total += ticketdata[i]['total_price'];
       ticket.text(i.toString());
 
@@ -1099,7 +1196,7 @@ class BPageState extends State<BPage> {
       //     await CharsetConverter.encode("UTF-8", ticketdata[i]['title']);
 
       //-----------------------------------------------------------
-      print(ticketdata[i]['title']);
+      //printticketdata[i]['title']);
       String title = ticketdata[i]['title'];
       ticket.text('${title}',
           containsChinese: true,
@@ -1109,7 +1206,7 @@ class BPageState extends State<BPage> {
         ticket.text(ticketdata[i]['ChoiceIDList'][j]['ChoiceName'],
             containsChinese: true);
       }
-      print(ticketdata[i]['Remark']);
+      //printticketdata[i]['Remark']);
       if (ticketdata[i]['Remark'] == '') {
         ticketdata[i]['Remark'] = '無';
       }
@@ -1160,7 +1257,7 @@ class BPageState extends State<BPage> {
     if (isConnected == "true") {
       Ticket ticket = await getGraphicsTicket(data);
       final result = await BluetoothThermalPrinter.writeBytes(ticket.bytes);
-      print("Print $result");
+      //print"Print $result");
       // return "Ok";
     } else {
       //Hadnle Not Connected Senario
@@ -1175,21 +1272,21 @@ class BPageState extends State<BPage> {
     if (myStringList.contains(orderid + index)) {
       myStringList.remove(orderid + index);
     }
-    print('remove $orderid + index ');
+    //print'remove $orderid + index ');
     await prefs.setStringList('savedrawList', myStringList);
     if (myStringList != null) {
       setState(() {
         _drawlist = myStringList;
       });
     }
-    print(_drawlist);
+    //print_drawlist);
     return myStringList;
   }
 
   _getdraw() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final myStringList = prefs.getStringList('savedrawList');
-    print(myStringList);
+    //printmyStringList);
     if (myStringList != null) {
       setState(() {
         _drawlist = myStringList;
@@ -1201,7 +1298,7 @@ class BPageState extends State<BPage> {
   // Future<List> _getOrderdraw() async {
   //   SharedPreferences prefs = await SharedPreferences.getInstance();
   //   final myStringList = prefs.getStringList('saveorderdrawList');
-  //   print(myStringList);
+  //   //printmyStringList);
   //   if (myStringList != null) {
   //     setState(() {
   //       _orderdrawlist = myStringList;
@@ -1215,7 +1312,7 @@ class BPageState extends State<BPage> {
     prefs.setStringList("saveorderdrawList", list);
   }
   //-------------------------------------------出單機-------------------------------------------
-  // Future<void> _startPrint(PrinterBluetooth printer) async {
+  // Future<void> _start//printPrinterBluetooth printer) async {
   //   _printerManager.selectPrinter(printer);
   //   final result =
   //       await _printerManager.printTicket(await _ticket(PaperSize.mm80));
@@ -1230,8 +1327,8 @@ class BPageState extends State<BPage> {
   //-------------------------------------------出單機-------------------------------------------
 
   Widget build(BuildContext context) {
-    print("BPageStatebuild");
-    // print(order_data["title"]);
+    //print"BPageStatebuild");
+    // //printorder_data["title"]);
     data = [];
     data.add({
       "DiningStyle": order_data["dining"],
@@ -1346,6 +1443,7 @@ class BPageState extends State<BPage> {
                       style: TextStyle(color: Colors.white, fontSize: 40),
                     ),
                     onPressed: () {
+                      _timer.cancel();
                       ifprintOpen().then((value) {
                         if (value == "Connected") {
                           orderApply(order_data["OrderID"], order_data['price'],
@@ -1450,6 +1548,7 @@ class BPageState extends State<BPage> {
                 ),
                 onPressed: () {
                   Navigator.of(context).pushNamed('/CloudPos');
+
                   // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
                   // Navigator.push(
                   //     context, MaterialPageRoute(builder: (_) => HomePage()));
@@ -1485,7 +1584,7 @@ class BPageState extends State<BPage> {
                         ? 0
                         : json.decode(order_data["OrderTemp"]).length,
                     itemBuilder: (BuildContext context, int index) {
-                      print(index);
+                      //printindex);
                       choiceCard = [];
                       if (json
                               .decode(order_data["OrderTemp"])[index]
@@ -1523,8 +1622,6 @@ class BPageState extends State<BPage> {
                                   ["Count"];
                         }
                       }
-                      // print('here');
-                      // print(_drawlist);
                       return Center(
                           child: Column(children: [
                         GestureDetector(
@@ -1550,27 +1647,29 @@ class BPageState extends State<BPage> {
                                         setState(() {
                                           _drawlist = drawlist;
                                         });
-                                        print(_drawlist);
-                                    for (var j = 0;
-                                        j <
-                                            json
-                                                .decode(order_data["OrderTemp"])
-                                                .length;
-                                        j++) {
-                                      if (_drawlist.contains(
-                                          order_data["OrderID"] +
-                                              j.toString())) {
-                                        saveindex_list.add(true);
-                                      } else {
-                                        saveindex_list.add(false);
-                                      }
-                                    }
-                                    print("QQ:");
-                                    print(saveindex_list);
-                                    if (!saveindex_list.contains(false)) {
-                                      this._saveOrderdraw(order_data["OrderID"],
-                                          order_data["OrderID"] + '#1');
-                                    }
+                                        //print_drawlist);
+                                        for (var j = 0;
+                                            j <
+                                                json
+                                                    .decode(
+                                                        order_data["OrderTemp"])
+                                                    .length;
+                                            j++) {
+                                          if (_drawlist.contains(
+                                              order_data["OrderID"] +
+                                                  j.toString())) {
+                                            saveindex_list.add(true);
+                                          } else {
+                                            saveindex_list.add(false);
+                                          }
+                                        }
+                                        //print"QQ:");
+                                        //printsaveindex_list);
+                                        if (!saveindex_list.contains(false)) {
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#1');
+                                        }
                                       });
                                       // setState(() {
                                       if (!_selectedItems.contains(index)) {
@@ -1580,9 +1679,9 @@ class BPageState extends State<BPage> {
                                         });
                                       }
                                       //訂單變色===============
-                                      if (saveindex_list.contains(false)==true) {
-                                        // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
-                                        // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
+                                      if (saveindex_list.contains(false) ==
+                                          true) {
+                                        //全畫完
                                         this._saveOrderdraw(
                                             order_data["OrderID"],
                                             order_data["OrderID"] + '#1');
@@ -1598,52 +1697,70 @@ class BPageState extends State<BPage> {
                                             order_data["OrderID"],
                                             order_data["OrderID"] + '#0');
                                       } else if (_selectedItems.length == 0) {
-                                        print("等於零");
+                                        //print"等於零");
                                         this._removeOrderdraw(
                                             order_data["OrderID"]);
                                       }
                                       //訂單變色===============
-                                      // print(_selectedItems);
-                                      // print(_drawlist);
                                     },
                                     onLongPress: () {
-                                      // print("_selectedItems.length");
-                                      // print(_selectedItems.length);
-                                      this._remove(order_data["OrderID"],
-                                          index.toString());
+                                      List saveindex_list = [];
+                                      this
+                                          ._remove(order_data["OrderID"],
+                                              index.toString())
+                                          .then((value) {
+                                        for (var j = 0;
+                                            j <
+                                                json
+                                                    .decode(
+                                                        order_data["OrderTemp"])
+                                                    .length;
+                                            j++) {
+                                          if (_drawlist.contains(
+                                              order_data["OrderID"] +
+                                                  j.toString())) {
+                                            saveindex_list.add(true);
+                                          } else {
+                                            saveindex_list.add(false);
+                                          }
+                                        }
+                                        //訂單變色===============
+                                        //判斷畫完
+                                        // print(saveindex_list);
+                                        // print(!saveindex_list.contains(false));
+                                        // print("1:" +
+                                        //     saveindex_list
+                                        //         .contains(true)
+                                        //         .toString());
+                                        // print("2:" +
+                                        //     saveindex_list
+                                        //         .contains(false)
+                                        //         .toString());
+                                        if (!saveindex_list.contains(false)) {
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#1');
+                                        } else if (saveindex_list
+                                                .contains(true) &&
+                                            saveindex_list.contains(false)) {
+                                          //畫到一半
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#0');
+                                        } else if (!saveindex_list
+                                            .contains(true)) {
+                                          //print"等於零");
+                                          this._removeOrderdraw(
+                                              order_data["OrderID"]);
+                                        }
+                                        //訂單變色===============
+                                      });
                                       if (_selectedItems.contains(index)) {
                                         setState(() {
                                           _selectedItems.removeWhere(
                                               (val) => val == index);
                                         });
                                       }
-                                      //訂單變色===============
-                                      if (_selectedItems.length ==
-                                          json
-                                              .decode(order_data["OrderTemp"])
-                                              .length) {
-                                        // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
-                                        // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
-                                        this._saveOrderdraw(
-                                            order_data["OrderID"],
-                                            order_data["OrderID"] + '#1');
-                                      } else if (_selectedItems.length <
-                                              json
-                                                  .decode(
-                                                      order_data["OrderTemp"])
-                                                  .length &&
-                                          _selectedItems.length != 0) {
-                                        // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
-                                        // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
-                                        this._saveOrderdraw(
-                                            order_data["OrderID"],
-                                            order_data["OrderID"] + '#0');
-                                      } else if (_selectedItems.length == 0) {
-                                        print("等於零");
-                                        this._removeOrderdraw(
-                                            order_data["OrderID"]);
-                                      }
-                                      //訂單變色===============
                                     },
                                     child: Container(
                                         constraints: BoxConstraints(
@@ -1662,6 +1779,8 @@ class BPageState extends State<BPage> {
                                               style: TextStyle(fontSize: 16),
                                             ),
                                             Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                     "品名：" +
@@ -1710,11 +1829,6 @@ class BPageState extends State<BPage> {
                                                           : TextDecoration
                                                               .none),
                                                 ),
-                                              ],
-                                            ),
-                                            Text("   "),
-                                            Column(
-                                              children: [
                                                 Text(
                                                     "備註：" +
                                                         json.decode(order_data[
@@ -1736,6 +1850,10 @@ class BPageState extends State<BPage> {
                                                             : TextDecoration
                                                                 .none)),
                                               ],
+                                            ),
+                                            Text("   "),
+                                            Column(
+                                              children: [],
                                             ),
                                             Column(
                                               children: [
@@ -1876,7 +1994,7 @@ class BPageState extends State<BPage> {
                         ? 0
                         : json.decode(order_data["OrderTemp"]).length,
                     itemBuilder: (BuildContext context, int index) {
-                      print(index);
+                      //printindex);
                       choiceCard = [];
                       if (json
                               .decode(order_data["OrderTemp"])[index]
@@ -1902,123 +2020,158 @@ class BPageState extends State<BPage> {
 
                       return Center(
                           child: Column(children: [
-                        Card(
-                            color: (_selectedItems.contains(index)) ||
-                                    _drawlist.contains(order_data["OrderID"] +
-                                        index.toString())
-                                // ? Colors.blue.withOpacity(0.5)
-                                ? Colors.orangeAccent.withOpacity(0.3)
-                                // ? Colors.red.withOpacity(0.3)
-                                : Colors.white,
-                            child: new InkWell(
-                                onTap: () {
-                                  List saveindex_list = []; //餐點的變色
-                                  List drawlist; //餐點的變色
-                                  // List order_drawlist; //訂單的變色
-                                  this
-                                      ._savedraw(order_data["OrderID"],
-                                          index.toString())
-                                      .then((value) {
-                                    drawlist = value;
-                                    setState(() {
-                                      _drawlist = drawlist;
-                                    });
+                        GestureDetector(
+                            onTap: () {},
+                            child: Card(
+                                color: (_selectedItems.contains(index)) ||
+                                        _drawlist.contains(
+                                            order_data["OrderID"] +
+                                                index.toString())
+                                    // ? Colors.blue.withOpacity(0.5)
+                                    ? Colors.orangeAccent.withOpacity(0.3)
+                                    // ? Colors.red.withOpacity(0.3)
+                                    : Colors.white,
+                                child: new InkWell(
+                                    onTap: () {
+                                      List saveindex_list = []; //餐點的變色
+                                      List drawlist; //餐點的變色
+                                      // List order_drawlist; //訂單的變色
+                                      this
+                                          ._savedraw(order_data["OrderID"],
+                                              index.toString())
+                                          .then((value) {
+                                        drawlist = value;
+                                        setState(() {
+                                          _drawlist = drawlist;
+                                        });
 
-                                    print(_drawlist);
-                                    for (var j = 0;
-                                        j <
-                                            json
-                                                .decode(order_data["OrderTemp"])
-                                                .length;
-                                        j++) {
-                                      if (_drawlist.contains(
-                                          order_data["OrderID"] +
-                                              j.toString())) {
-                                        saveindex_list.add(true);
-                                      } else {
-                                        saveindex_list.add(false);
+                                        //print_drawlist);
+                                        for (var j = 0;
+                                            j <
+                                                json
+                                                    .decode(
+                                                        order_data["OrderTemp"])
+                                                    .length;
+                                            j++) {
+                                          if (_drawlist.contains(
+                                              order_data["OrderID"] +
+                                                  j.toString())) {
+                                            saveindex_list.add(true);
+                                          } else {
+                                            saveindex_list.add(false);
+                                          }
+                                        }
+                                        //print"QQ:");
+                                        //printsaveindex_list);
+                                        if (!saveindex_list.contains(false)) {
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#1');
+                                        }
+                                      });
+                                      // setState(() {
+                                      if (!_selectedItems.contains(index)) {
+                                        setState(() {
+                                          _selectedItems.add(index);
+                                        });
                                       }
-                                    }
-                                    print("QQ:");
-                                    print(saveindex_list);
-                                    if (!saveindex_list.contains(false)) {
-                                      this._saveOrderdraw(order_data["OrderID"],
-                                          order_data["OrderID"] + '#1');
-                                    }
-                                  });
-                                  // setState(() {
-                                  if (!_selectedItems.contains(index)) {
-                                    setState(() {
-                                      _selectedItems.add(index);
-                                    });
-                                  }
-                                  if (saveindex_list.contains(false)==true) {
-                                    this._saveOrderdraw(order_data["OrderID"],
-                                        order_data["OrderID"] + '#1');
-                                  } else if (_selectedItems.length <
-                                      json
-                                          .decode(order_data["OrderTemp"])
-                                          .length) {
-                                    // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
-                                    // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
-                                    this._saveOrderdraw(order_data["OrderID"],
-                                        order_data["OrderID"] + '#0');
-                                  }
-                                  //把狀態存到sharedpreferences
-                                },
-                                onLongPress: () {
-                                  this._remove(
-                                      order_data["OrderID"], index.toString());
-                                  if (_selectedItems.contains(index)) {
-                                    setState(() {
-                                      _selectedItems
-                                          .removeWhere((val) => val == index);
-                                    });
-                                  }
-                                  //訂單變色===============
-                                  if (_selectedItems.length ==
-                                      json
-                                          .decode(order_data["OrderTemp"])
-                                          .length) {
-                                    // order_drawlist[order_data["OrderID"]] = '1'; //全畫完
-                                    // order_drawlist.add(order_data["OrderID"]+'_1'); //全畫完
-                                    this._saveOrderdraw(order_data["OrderID"],
-                                        order_data["OrderID"] + '#1');
-                                  } else if (_selectedItems.length <
+                                      if (saveindex_list.contains(false) ==
+                                          true) {
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#1');
+                                      } else if (_selectedItems.length <
                                           json
                                               .decode(order_data["OrderTemp"])
-                                              .length &&
-                                      _selectedItems.length != 0) {
-                                    // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
-                                    // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
-                                    this._saveOrderdraw(order_data["OrderID"],
-                                        order_data["OrderID"] + '#0');
-                                  } else if (_selectedItems.length == 0) {
-                                    print("等於零");
-                                    this._removeOrderdraw(
-                                        order_data["OrderID"]);
-                                  }
-                                  //訂單變色===============
-                                },
-                                child: Container(
-                                    constraints: BoxConstraints(
-                                      minHeight: 80,
-                                    ),
-                                    padding: EdgeInsets.all(10.0),
-                                    // height: 80,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: <Widget>[
-                                        Text(
-                                          (index + 1).toString(),
-                                          style: TextStyle(fontSize: 16),
+                                              .length) {
+                                        // order_drawlist[order_data["OrderID"]] = '0'; //有畫但沒畫完
+                                        // order_drawlist.add(order_data["OrderID"] + '_0'); //有畫但沒畫完
+                                        this._saveOrderdraw(
+                                            order_data["OrderID"],
+                                            order_data["OrderID"] + '#0');
+                                      }
+                                      //把狀態存到sharedpreferences
+                                    },
+                                    onLongPress: () {
+                                      List saveindex_list = [];
+                                      // //print"_selectedItems.length");
+                                      // //print_selectedItems.length);
+                                      this
+                                          ._remove(order_data["OrderID"],
+                                              index.toString())
+                                          .then((value) {
+                                        for (var j = 0;
+                                            j <
+                                                json
+                                                    .decode(
+                                                        order_data["OrderTemp"])
+                                                    .length;
+                                            j++) {
+                                          if (_drawlist.contains(
+                                              order_data["OrderID"] +
+                                                  j.toString())) {
+                                            saveindex_list.add(true);
+                                          } else {
+                                            saveindex_list.add(false);
+                                          }
+                                        }
+                                        //訂單變色===============
+                                        //判斷畫完
+                                        // print(saveindex_list);
+                                        // print(!saveindex_list.contains(false));
+                                        // print("1:" +
+                                        //     saveindex_list
+                                        //         .contains(true)
+                                        //         .toString());
+                                        // print("2:" +
+                                        //     saveindex_list
+                                        //         .contains(false)
+                                        //         .toString());
+                                        if (!saveindex_list.contains(false)) {
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#1');
+                                        } else if (saveindex_list
+                                                .contains(true) &&
+                                            saveindex_list.contains(false)) {
+                                          //畫到一半
+                                          this._saveOrderdraw(
+                                              order_data["OrderID"],
+                                              order_data["OrderID"] + '#0');
+                                        } else if (!saveindex_list
+                                            .contains(true)) {
+                                          //print"等於零");
+                                          this._removeOrderdraw(
+                                              order_data["OrderID"]);
+                                        }
+                                        //訂單變色===============
+                                      });
+                                      if (_selectedItems.contains(index)) {
+                                        setState(() {
+                                          _selectedItems.removeWhere(
+                                              (val) => val == index);
+                                        });
+                                      }
+                                    },
+                                    child: Container(
+                                        constraints: BoxConstraints(
+                                          minHeight: 80,
                                         ),
-                                        Row(
-                                          children: [
+                                        padding: EdgeInsets.all(10.0),
+                                        // height: 80,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: <Widget>[
+                                            Text(
+                                              (index + 1).toString(),
+                                              style: TextStyle(fontSize: 16),
+                                            ),
                                             Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                     "品名：" +
@@ -2067,11 +2220,6 @@ class BPageState extends State<BPage> {
                                                           : TextDecoration
                                                               .none),
                                                 ),
-                                              ],
-                                            ),
-                                            Text("   "),
-                                            Column(
-                                              children: [
                                                 Text(
                                                     "備註：" +
                                                         json.decode(order_data[
@@ -2092,21 +2240,23 @@ class BPageState extends State<BPage> {
                                                                 .lineThrough
                                                             : TextDecoration
                                                                 .none)),
-                                                Column(
-                                                  children: [
-                                                    // Text("單品項價錢" +
-                                                    //     json.decode(order_data["OrderTemp"])[index]
-                                                    //         ["FoodPrice"]),
-                                                    ...choiceCard,
-                                                    // Text("總額：" + order_data['price']),
-                                                  ],
-                                                ),
+                                              ],
+                                            ),
+                                            Text("   "),
+                                            Column(
+                                              children: [],
+                                            ),
+                                            Column(
+                                              children: [
+                                                // Text("單品項價錢" +
+                                                //     json.decode(order_data["OrderTemp"])[index]
+                                                //         ["FoodPrice"]),
+                                                ...choiceCard,
+                                                // Text("總額：" + order_data['price']),
                                               ],
                                             ),
                                           ],
-                                        )
-                                      ],
-                                    ))))
+                                        )))))
                       ]));
                     }),
               )),
@@ -2175,5 +2325,11 @@ class BPageState extends State<BPage> {
     super.initState();
     SystemChrome.setPreferredOrientations(
         [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
   }
 }
