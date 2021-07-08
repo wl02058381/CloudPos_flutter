@@ -29,13 +29,6 @@ timer(title) {
   });
 }
 
-qq() {
-  Timer _timer;
-  const period = const Duration(seconds: 5);
-  _timer = Timer.periodic(period, (timer) {
-    print("qq");
-  });
-}
 
 Future<String> getSWData(paid, del) async {
   try {
