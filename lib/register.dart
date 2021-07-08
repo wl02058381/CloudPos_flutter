@@ -9,13 +9,13 @@ import 'package:rflutter_alert/rflutter_alert.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterPage extends StatelessWidget {
-  final String url = "https://cloudpos.54ucl.com:8011/AddAccount";
+  final String url = "https://iordering.tw:8011/AddAccount";
   String data;
   String _status;
   Future<String> registerBTN() async {
     try {
       var wifiIP = await WifiInfo().getWifiIP();
-      var url = "https://cloudpos.54ucl.com:8011/AddAccount";
+      var url = "https://iordering.tw:8011/AddAccount";
       var body = json.encode({
         "IP": wifiIP,
         "Account": accountController.text,

@@ -1,4 +1,3 @@
-import 'package:cloudpos_online/modifyPW.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
@@ -10,37 +9,37 @@ import 'package:rflutter_alert/rflutter_alert.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_progress_button/flutter_progress_button.dart';
 
-class LoginPage extends StatelessWidget {
+class ModifyPWPage extends StatelessWidget {
   final String url = "https://iordering.tw:8011/LoginConfirm";
   String data;
   dynamic order_data = {};
   String _status;
+  Future<String> getstoreid() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String storeID = prefs.getString('StoreID');
+    return storeID;
+  }
 
   // List<Map<String, dynamic>> logindata = [];
-  Future<String> loginBTN() async {
+  Future<String> modifyBTN() async {
     try {
-      var wifiIP = await WifiInfo().getWifiIP();
-      var url = "https://iordering.tw:8011/LoginConfirm";
+      // var wifiIP = await WifiInfo().getWifiIP();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String storeID = prefs.getString('StoreID');
+      var url = "https://iordering.tw:8011/UpdatePwd";
       var body = json.encode({
-        "IP": wifiIP,
+        "StoreID": storeID,
         "Account": accountController.text,
-        "PassWord": passwordController.text,
+        "PassWord": oldpasswordController.text,
+        "NewPassWord": newpasswordController.text
       });
       Map<String, String> headers = {
         'Content-type': 'application/json',
         'Accept': 'application/json',
       };
       final response = await http.post(url, body: body, headers: headers);
-      // setState(() {
-      //   _status = json.decode(response.body)["Status"];
-      // });
       print(response.body);
-      // final String status = json.decode(response.body)["Status"];
-      // return status;
       final String resbody = response.body;
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('StoreID', json.decode(resbody)["StoreID"]);
-      // await prefs.setString('StoreName', json.decode(resbody)["StoreName"]);
       return resbody;
     } catch (e) {
       print(e);
@@ -50,10 +49,11 @@ class LoginPage extends StatelessWidget {
 
   @override
   TextEditingController accountController = new TextEditingController();
-  TextEditingController passwordController = new TextEditingController();
+  TextEditingController oldpasswordController = new TextEditingController();
+  TextEditingController newpasswordController = new TextEditingController();
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("登入頁面"), automaticallyImplyLeading: false),
+      appBar: AppBar(title: Text("修改密碼"), automaticallyImplyLeading: true),
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
@@ -71,12 +71,24 @@ class LoginPage extends StatelessWidget {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
               child: TextFormField(
-                controller: passwordController,
+                controller: oldpasswordController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.lock),
-                  suffixIcon: Icon(Icons.remove_red_eye),
-                  labelText: "密碼 *",
-                  hintText: "請輸入密碼",
+                  // suffixIcon: Icon(Icons.remove_red_eye),
+                  labelText: "舊密碼 *",
+                  hintText: "請輸入舊密碼",
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: TextFormField(
+                controller: newpasswordController,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.lock),
+                  // suffixIcon: Icon(Icons.remove_red_eye),
+                  labelText: "新密碼 *",
+                  hintText: "請輸入新密碼",
                 ),
               ),
             ),
@@ -85,12 +97,12 @@ class LoginPage extends StatelessWidget {
             ),
             SizedBox(
                 width: MediaQuery.of(context).size.width - 48.0,
-                height: 200.0,
+                height: 150.0,
                 child: Column(
                   children: [
                     ProgressButton(
                       defaultWidget: const Text(
-                        '登入',
+                        '修改密碼',
                         style: TextStyle(fontSize: 28),
                       ),
                       progressWidget: const CircularProgressIndicator(),
@@ -98,7 +110,8 @@ class LoginPage extends StatelessWidget {
                       height: 60,
                       onPressed: () async {
                         if (accountController.text.length == 0 ||
-                            passwordController.text.length == 0) {
+                            oldpasswordController.text.length == 0 ||
+                            newpasswordController.text.length == 0) {
                           Alert(
                             context: context,
                             type: AlertType.error,
@@ -118,7 +131,7 @@ class LoginPage extends StatelessWidget {
                           ).show();
                         } else {
                           String status;
-                          var value = await this.loginBTN();
+                          var value = await this.modifyBTN();
                           int score = await Future.delayed(
                               const Duration(milliseconds: 1000), () => 42);
                           return () {
@@ -126,7 +139,7 @@ class LoginPage extends StatelessWidget {
                               Alert(
                                 context: context,
                                 type: AlertType.error,
-                                title: "登入失敗",
+                                title: "修改失敗",
                                 desc: "請檢查網路連線狀態",
                                 buttons: [
                                   DialogButton(
@@ -144,20 +157,29 @@ class LoginPage extends StatelessWidget {
                             status = json.decode(value)["Status"];
                             print(status);
                             if (status == "Success") {
-                              Navigator.of(context).pushNamed('/HomePage');
-                              // logindata.add(json.decode(value)["StoreID"]);
-                              // logindata.add(json.decode(value)["StoreName"]);
-                              // Navigator.push(
-                              //     context,
-                              //     MaterialPageRoute(
-                              //         builder: (context) => HomePage()));
-                              print(json.decode(value)["StoreID"]);
-                              print(json.decode(value)["StoreName"]);
+                              Alert(
+                                context: context,
+                                type: AlertType.success,
+                                title: "修改成功",
+                                desc: "修改密碼成功",
+                                buttons: [
+                                  DialogButton(
+                                    child: Text(
+                                      "確認",
+                                      style: TextStyle(
+                                          color: Colors.white, fontSize: 20),
+                                    ),
+                                    onPressed: () => Navigator.of(context)
+                                        .pushNamed('/HomePage'),
+                                    width: 120,
+                                  )
+                                ],
+                              ).show();
                             } else {
                               Alert(
                                 context: context,
                                 type: AlertType.error,
-                                title: "登入失敗",
+                                title: "修改失敗",
                                 desc: "帳號或密碼錯誤",
                                 buttons: [
                                   DialogButton(
@@ -179,24 +201,6 @@ class LoginPage extends StatelessWidget {
                     SizedBox(
                       height: 20.0,
                     ),
-                    FlatButton(
-                      child: Text("註冊", style: new TextStyle(fontSize: 20)),
-                      onPressed: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => RegisterPage()));
-                      },
-                    ),
-                    // FlatButton(
-                    //   child: Text("修改密碼", style: new TextStyle(fontSize: 20)),
-                    //   onPressed: () {
-                    //     Navigator.push(
-                    //         context,
-                    //         MaterialPageRoute(
-                    //             builder: (context) => ModifyPWPage()));
-                    //   },
-                    // ),
                   ],
                 )),
           ],

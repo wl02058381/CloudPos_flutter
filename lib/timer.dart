@@ -41,7 +41,7 @@ Future<String> getSWData(paid, del) async {
   try {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
-    var url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
+    var url = "https://iordering.tw:8011/GetTempOrder";
     var body = json.encode({"StoreID": storeID, "Paid": paid, "Del": del});
     Map<String, String> headers = {
       'Content-type': 'application/json',

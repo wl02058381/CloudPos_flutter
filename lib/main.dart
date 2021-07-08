@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 // import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:cloudpos_online/modifyPW.dart';
 import 'package:http/http.dart' as http;
 // import 'dart:io';
 // import 'package:webview_flutter/webview_flutter.dart';
@@ -12,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloudpos_online/login.dart';
 import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:cloudpos_online/modifyPW.dart';
 //----print
 import 'package:flutter/material.dart' hide Image;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
@@ -43,6 +45,7 @@ void main() {
         '/LoginPage': (BuildContext context) => new LoginPage(),
         '/BPage': (BuildContext context) => new BPage(),
         '/CloudPos': (BuildContext context) => new CloudPos(),
+        '/ModifyPW': (BuildContext context) => new ModifyPWPage(),
       },
       debugShowCheckedModeBanner: false));
   // BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
@@ -82,7 +85,7 @@ class HomePageState extends State<HomePage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       // String storeName = prefs.getString('StoreName');
       String storeID = prefs.getString('StoreID');
-      var url = "https://cloudpos.54ucl.com:8011/ManagerFirstPage";
+      var url = "https://iordering.tw:8011/ManagerFirstPage";
       var body = json.encode({"StoreID": storeID});
       Map<String, String> headers = {
         'Content-type': 'application/json',
@@ -181,55 +184,57 @@ class HomePageState extends State<HomePage> {
                                     style: TextStyle(fontSize: 22.0)),
                                 onPressed: () {
                                   String storeid;
-                                  getstoreid().then((value) => storeid = value);
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => WebviewScaffold(
-                                                url:
-                                                    'https://cloudpos.54ucl.com:3010/?s=' +
-                                                        storeid,
-                                                // withLocalStorage: true,
+                                  getstoreid().then((value) {
+                                    storeid = value;
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) =>
+                                                WebviewScaffold(
+                                                  url:
+                                                      'https://iordering.tw:3333/?s=' +
+                                                          storeid,
+                                                  // withLocalStorage: true,
 
-                                                withJavascript: true,
-                                                hidden: true,
-                                                withZoom: true,
-                                                initialChild: Container(
-                                                    child: const Center(
-                                                  child:
-                                                      CircularProgressIndicator(),
-                                                )),
-                                                appBar: new AppBar(
-                                                  leading: IconButton(
-                                                    icon: Icon(
-                                                      Icons.wrap_text_sharp,
-                                                      color: Colors.white,
+                                                  withJavascript: true,
+                                                  hidden: true,
+                                                  withZoom: true,
+                                                  initialChild: Container(
+                                                      child: const Center(
+                                                    child:
+                                                        CircularProgressIndicator(),
+                                                  )),
+                                                  appBar: new AppBar(
+                                                    leading: IconButton(
+                                                      icon: Icon(
+                                                        Icons.wrap_text_sharp,
+                                                        color: Colors.white,
+                                                      ),
+                                                      onPressed: () {
+                                                        final flutterWebviewPlugin =
+                                                            new FlutterWebviewPlugin();
+                                                        Navigator.of(context)
+                                                            .pushNamed(
+                                                                '/HomePage');
+                                                        flutterWebviewPlugin
+                                                            .close();
+
+                                                        // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
+                                                        // Navigator.push(
+                                                        //     context, MaterialPageRoute(builder: (_) => HomePage()));
+                                                      },
                                                     ),
-                                                    onPressed: () {
-                                                      final flutterWebviewPlugin =
-                                                          new FlutterWebviewPlugin();
-                                                      Navigator.of(context)
-                                                          .pushNamed(
-                                                              '/HomePage');
-                                                      flutterWebviewPlugin
-                                                          .close();
-
-                                                      // Navigator.of(context).pushNamedAndRemoveUntil('/HomePage', (Route<dynamic> route) => false);
-                                                      // Navigator.push(
-                                                      //     context, MaterialPageRoute(builder: (_) => HomePage()));
-                                                    },
+                                                    title: new Text('後台設定'),
                                                   ),
-                                                  title: new Text('後台設定'),
-                                                ),
-                                              )
-                                          // WebView(
-                                          //       initialUrl:
-                                          //           'https://cloudpos.54ucl.com:3010',
-                                          //       javascriptMode:
-                                          //           JavascriptMode.unrestricted,
-                                          //     )
-                                          ));
-
+                                                )
+                                            // WebView(
+                                            //       initialUrl:
+                                            //           'https://cloudpos.54ucl.com:3010',
+                                            //       javascriptMode:
+                                            //           JavascriptMode.unrestricted,
+                                            //     )
+                                            ));
+                                  });
                                   // Navigator.push(
                                   //     context,
                                   //     MaterialPageRoute(
@@ -250,6 +255,17 @@ class HomePageState extends State<HomePage> {
                                   //     context,
                                   //     MaterialPageRoute(
                                   //         builder: (context) => ChooseBT()));
+                                },
+                              )),
+                          ButtonTheme(
+                              minWidth: 200.0,
+                              height: 70.0,
+                              buttonColor: Colors.white70,
+                              child: RaisedButton(
+                                child: Text("修改密碼",
+                                    style: TextStyle(fontSize: 22.0)),
+                                onPressed: () {
+                                  Navigator.of(context).pushNamed('/ModifyPW');
                                 },
                               )),
                           ButtonTheme(
@@ -330,7 +346,7 @@ Timer _timer;
 String title = "(未結帳訂單)"; //預設title;
 
 class CloudPosState extends State<CloudPos> {
-  final String url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
+  final String url = "https://iordering.tw:8011/GetTempOrder";
   String clouddata;
   dynamic order_data = {};
 
@@ -341,7 +357,7 @@ class CloudPosState extends State<CloudPos> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String storeID = prefs.getString('StoreID');
-      var url = "https://cloudpos.54ucl.com:8011/GetTempOrder";
+      var url = "https://iordering.tw:8011/GetTempOrder";
       var body = json.encode({"StoreID": storeID, "Paid": paid, "Del": del});
       Map<String, String> headers = {
         'Content-type': 'application/json',
@@ -360,7 +376,7 @@ class CloudPosState extends State<CloudPos> {
   Future<String> searchSWData(searchText) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
-    var url = "https://cloudpos.54ucl.com:8011/GetSearchTempOrder";
+    var url = "https://iordering.tw:8011/GetSearchTempOrder";
     var body = json.encode({
       "Token": "GetRow.Token",
       "StoreID": storeID,
@@ -465,7 +481,7 @@ class CloudPosState extends State<CloudPos> {
                       // 沒畫完
                       cardcolor.add(Colors.orangeAccent[100]);
                       // cardcolor.add(Colors.orangeAccent[100]);
-                      
+
                     } else {
                       //沒畫
                       // cardcolor.add(Colors.black12);
@@ -646,68 +662,68 @@ class CloudPosState extends State<CloudPos> {
                                 },
                               ),
                               Text("   "),
-                              FlatButton(
-                                height: 80.0,
-                                color:
-                                    Theme.of(context).textSelectionHandleColor,
-                                textColor: Colors.white,
-                                child: Text('編號搜尋',
-                                    style: TextStyle(fontSize: 20.0)),
-                                onPressed: () {
-                                  Alert(
-                                      context: context,
-                                      title: "編號搜尋",
-                                      content: Column(
-                                        children: <Widget>[
-                                          TextField(
-                                            controller: searchController,
-                                            decoration: InputDecoration(
-                                              icon: Icon(Icons.search_rounded),
-                                              labelText: '輸入編號',
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                      buttons: [
-                                        DialogButton(
-                                          onPressed: () {
-                                            if (searchController.text.length !=
-                                                4) {
-                                              Alert(
-                                                context: context,
-                                                type: AlertType.error,
-                                                title: "編號錯誤",
-                                                desc: "編號為四碼數字",
-                                                buttons: [
-                                                  DialogButton(
-                                                    child: Text(
-                                                      "確認",
-                                                      style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 20),
-                                                    ),
-                                                    onPressed: () =>
-                                                        Navigator.pop(context),
-                                                    width: 120,
-                                                  )
-                                                ],
-                                              ).show();
-                                            } else {
-                                              searchSWData(
-                                                  searchController.text);
-                                              Navigator.pop(context);
-                                            }
-                                          },
-                                          child: Text(
-                                            "搜尋",
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 20),
-                                          ),
-                                        )
-                                      ]).show();
-                                },
-                              )
+                              // FlatButton(
+                              //   height: 80.0,
+                              //   color:
+                              //       Theme.of(context).textSelectionHandleColor,
+                              //   textColor: Colors.white,
+                              //   child: Text('編號搜尋',
+                              //       style: TextStyle(fontSize: 20.0)),
+                              //   onPressed: () {
+                              //     Alert(
+                              //         context: context,
+                              //         title: "編號搜尋",
+                              //         content: Column(
+                              //           children: <Widget>[
+                              //             TextField(
+                              //               controller: searchController,
+                              //               decoration: InputDecoration(
+                              //                 icon: Icon(Icons.search_rounded),
+                              //                 labelText: '輸入編號',
+                              //               ),
+                              //             )
+                              //           ],
+                              //         ),
+                              //         buttons: [
+                              //           DialogButton(
+                              //             onPressed: () {
+                              //               if (searchController.text.length !=
+                              //                   4) {
+                              //                 Alert(
+                              //                   context: context,
+                              //                   type: AlertType.error,
+                              //                   title: "編號錯誤",
+                              //                   desc: "編號為四碼數字",
+                              //                   buttons: [
+                              //                     DialogButton(
+                              //                       child: Text(
+                              //                         "確認",
+                              //                         style: TextStyle(
+                              //                             color: Colors.white,
+                              //                             fontSize: 20),
+                              //                       ),
+                              //                       onPressed: () =>
+                              //                           Navigator.pop(context),
+                              //                       width: 120,
+                              //                     )
+                              //                   ],
+                              //                 ).show();
+                              //               } else {
+                              //                 searchSWData(
+                              //                     searchController.text);
+                              //                 Navigator.pop(context);
+                              //               }
+                              //             },
+                              //             child: Text(
+                              //               "搜尋",
+                              //               style: TextStyle(
+                              //                   color: Colors.white,
+                              //                   fontSize: 20),
+                              //             ),
+                              //           )
+                              //         ]).show();
+                              //   },
+                              // )
                             ],
                           )
                         ],
@@ -1001,7 +1017,7 @@ class BPageState extends State<BPage> {
   Future<String> orderApply(orderid, totalprice, mealid) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
-    var url = "https://cloudpos.54ucl.com:8011/OrderApply";
+    var url = "https://iordering.tw:8011/OrderApply";
     var body = json.encode({
       "Token": "str",
       "StoreID": storeID,
@@ -1025,7 +1041,7 @@ class BPageState extends State<BPage> {
   Future<String> cancelApply(orderid) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String storeID = prefs.getString('StoreID');
-    var url = "https://cloudpos.54ucl.com:8011/CancleOrder";
+    var url = "https://iordering.tw:8011/CancleOrder";
     var body =
         json.encode({"Token": "str", "StoreID": storeID, "OrderID": orderid});
     Map<String, String> headers = {
