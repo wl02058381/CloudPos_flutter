@@ -118,12 +118,14 @@ class HomePageState extends State<HomePage> {
     //print"HomePageStatebuild");
     // String storeName;
     return FutureBuilder(
+        //取得店家名稱
         future: getstorename().then((value) {
           // this.setState(() {
           //   storeName = value;
           // });
           storeName = value;
         }),
+        // ignore: missing_return
         builder: (BuildContext context, AsyncSnapshot snapshot) {
           // 请求已结束
           if (snapshot.connectionState == ConnectionState.done) {
@@ -586,6 +588,7 @@ class CloudPosState extends State<CloudPos> {
                               ),
                               Text("   "),
                               // Spacer(),
+                              // ignore: deprecated_member_use
                               FlatButton(
                                 height: 80.0,
                                 color: Colors.pink,
@@ -1936,7 +1939,7 @@ class BPageState extends State<BPage> {
               )
             ],
           ));
-    } else if (order_data["dining"] == "TakeOut") {
+    } else if (order_data["dining"] == "TakeOut") { //如果是外帶
       for (var index = 0;
           index < json.decode(order_data["OrderTemp"]).length;
           index++) {
