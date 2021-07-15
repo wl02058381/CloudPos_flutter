@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloudpos_online/login.dart';
 import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:cloudpos_online/modifyPW.dart';
 //----print
 import 'package:flutter/material.dart' hide Image;
 import 'package:esc_pos_utils/esc_pos_utils.dart';
@@ -40,6 +39,7 @@ void main() {
   runApp(MaterialApp(
       home: LoginPage(),
       routes: <String, WidgetBuilder>{
+        //設置路由
         '/HomePage': (BuildContext context) => new HomePage(),
         '/ChooseBT': (BuildContext context) => new ChooseBT(),
         '/LoginPage': (BuildContext context) => new LoginPage(),
@@ -79,7 +79,7 @@ class HomePageState extends State<HomePage> {
     String storeID = prefs.getString('StoreID');
     return storeID;
   }
-
+  //取得店家名稱
   Future<String> getstorename() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -193,6 +193,7 @@ class HomePageState extends State<HomePage> {
                                         MaterialPageRoute(
                                             builder: (context) =>
                                                 WebviewScaffold(
+                                                  //後台設定WebView
                                                   url:
                                                       'https://iordering.tw:3333/?s=' +
                                                           storeid,
@@ -429,6 +430,7 @@ class CloudPosState extends State<CloudPos> {
               order_drawlist[i].toString().split('#')[1].toString();
         }
       }),
+      // ignore: missing_return
       builder: (BuildContext context, AsyncSnapshot snapshot) {
         // 请求已结束
         if (snapshot.connectionState == ConnectionState.done) {
@@ -544,7 +546,8 @@ class CloudPosState extends State<CloudPos> {
                 bottomNavigationBar: BottomAppBar(
                   child: Container(
                       height: 100.0,
-                      child: Row(
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
                         children: <Widget>[
                           Row(
                             children: [
@@ -665,68 +668,68 @@ class CloudPosState extends State<CloudPos> {
                                 },
                               ),
                               Text("   "),
-                              // FlatButton(
-                              //   height: 80.0,
-                              //   color:
-                              //       Theme.of(context).textSelectionHandleColor,
-                              //   textColor: Colors.white,
-                              //   child: Text('編號搜尋',
-                              //       style: TextStyle(fontSize: 20.0)),
-                              //   onPressed: () {
-                              //     Alert(
-                              //         context: context,
-                              //         title: "編號搜尋",
-                              //         content: Column(
-                              //           children: <Widget>[
-                              //             TextField(
-                              //               controller: searchController,
-                              //               decoration: InputDecoration(
-                              //                 icon: Icon(Icons.search_rounded),
-                              //                 labelText: '輸入編號',
-                              //               ),
-                              //             )
-                              //           ],
-                              //         ),
-                              //         buttons: [
-                              //           DialogButton(
-                              //             onPressed: () {
-                              //               if (searchController.text.length !=
-                              //                   4) {
-                              //                 Alert(
-                              //                   context: context,
-                              //                   type: AlertType.error,
-                              //                   title: "編號錯誤",
-                              //                   desc: "編號為四碼數字",
-                              //                   buttons: [
-                              //                     DialogButton(
-                              //                       child: Text(
-                              //                         "確認",
-                              //                         style: TextStyle(
-                              //                             color: Colors.white,
-                              //                             fontSize: 20),
-                              //                       ),
-                              //                       onPressed: () =>
-                              //                           Navigator.pop(context),
-                              //                       width: 120,
-                              //                     )
-                              //                   ],
-                              //                 ).show();
-                              //               } else {
-                              //                 searchSWData(
-                              //                     searchController.text);
-                              //                 Navigator.pop(context);
-                              //               }
-                              //             },
-                              //             child: Text(
-                              //               "搜尋",
-                              //               style: TextStyle(
-                              //                   color: Colors.white,
-                              //                   fontSize: 20),
-                              //             ),
-                              //           )
-                              //         ]).show();
-                              //   },
-                              // )
+                              FlatButton(
+                                height: 80.0,
+                                color:
+                                    Theme.of(context).textSelectionHandleColor,
+                                textColor: Colors.white,
+                                child: Text('編號搜尋',
+                                    style: TextStyle(fontSize: 20.0)),
+                                onPressed: () {
+                                  Alert(
+                                      context: context,
+                                      title: "編號搜尋",
+                                      content: Column(
+                                        children: <Widget>[
+                                          TextField(
+                                            controller: searchController,
+                                            decoration: InputDecoration(
+                                              icon: Icon(Icons.search_rounded),
+                                              labelText: '輸入編號',
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                      buttons: [
+                                        DialogButton(
+                                          onPressed: () {
+                                            if (searchController.text.length !=
+                                                4) {
+                                              Alert(
+                                                context: context,
+                                                type: AlertType.error,
+                                                title: "編號錯誤",
+                                                desc: "編號為四碼數字",
+                                                buttons: [
+                                                  DialogButton(
+                                                    child: Text(
+                                                      "確認",
+                                                      style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 20),
+                                                    ),
+                                                    onPressed: () =>
+                                                        Navigator.pop(context),
+                                                    width: 120,
+                                                  )
+                                                ],
+                                              ).show();
+                                            } else {
+                                              searchSWData(
+                                                  searchController.text);
+                                              Navigator.pop(context);
+                                            }
+                                          },
+                                          child: Text(
+                                            "搜尋",
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20),
+                                          ),
+                                        )
+                                      ]).show();
+                                },
+                              )
                             ],
                           )
                         ],
@@ -950,11 +953,11 @@ class CloudPosState extends State<CloudPos> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setBool('isrun', true);
     isrun = true;
-    //設定 1 秒回撥一次
+    //設定 30 秒回撥一次
     const period = const Duration(seconds: 30);
     _timer = Timer.periodic(period, (timer) {
       //更新介面
-      print("跑跑");
+      print("30秒");
       print(title);
       //print_timer.isActive);
       if (title == '(未結帳訂單)') {
